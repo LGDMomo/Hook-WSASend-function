@@ -6,24 +6,16 @@
 HMODULE myhmod;
 FILE* pFile = nullptr;
 
-typedef struct _WSABUF {
-    ULONG len;
-    CHAR* buf;
-} WSABUF, * LPWSABUF;
 
-int WsaSendHook(
-    SOCKET                             s,
-    LPWSABUF                           lpBuffers,
-    DWORD                              dwBufferCount,
-    LPDWORD                            lpNumberOfBytesSent,
-    DWORD                              dwFlags
-) 
+void HookSend(SOCKET s,const char* buf,int len,int flags)
 {
 
-    std::wcout << "===============================" <<  std::endl;
-    std::wcout << L"lpNumberOfBytesSent : " << lpNumberOfBytesSent << std::endl;
-    std::wcout << L"Buffer (encrypted) : " << lpBuffers->buf << std::endl;
-    return 0;
+    std::wcout << "===============================" << std::endl;
+    std::cout << "Buffer : " << buf << std::endl;
+    std::cout << "Buffer length : " << len << std::endl;
+    std::wcout << "===============================" << std::endl;
+
+    //return len;
 }
 
 
@@ -32,17 +24,21 @@ int Main()
     AllocConsole();
     freopen_s(&pFile, "CONOUT$", "w", stdout);
 
+    MessageBoxA(0, "Hooked ", "Bye", 0);
 
-    //hook there
+
+    //addr_send = (DWORD)GetProcAddress(GetModuleHandle(TEXT("WS2_32.dll")), "send");
+    //hook there /////////////////////////
     DetourRestoreAfterWith();
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
 
-    PVOID func = DetourFindFunction("WS2_32.dll", "WSASend");
-    DetourAttach(&(PVOID&)func, (PVOID)WsaSendHook);
+    PVOID func = DetourFindFunction("WS2_32.dll", "send");
 
+    DetourAttach(&(PVOID&)func, (PVOID)HookSend);
 
     DetourTransactionCommit();
+    ////////////////////////
 
 
     //exiting
