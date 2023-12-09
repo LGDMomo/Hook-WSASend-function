@@ -25,6 +25,8 @@ typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
 HMODULE hLib = LoadLibrary("WS2_32.dll");
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 
+
+//For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
     std::wcout << "===============================" << std::endl;
@@ -34,15 +36,7 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     return pSend(s, buf, len, flags);
 }
 
-int WSAAPI HookSend(SOCKET s,const char* buf,int len,int flags)
-{
-    std::wcout << "===============================" << std::endl;
-    std::cout << "Buffer : " << buf << std::endl;
-    std::cout << "Buffer length : " << len << std::endl;
-    std::wcout << "===============================" << std::endl;
-
-    return len;
-}                                                                                                  //,DWORD dwFlags,LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+//For WSASEnd()                        //,DWORD dwFlags,LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 int WSAAPI HookWSASend(SOCKET s,LPWSABUF lpBuffers,DWORD dwBufferCount,LPDWORD lpNumberOfBytesSent)
 {
     std::wcout << "===============================" << std::endl;
@@ -57,23 +51,15 @@ int Main()
 {
     AllocConsole();
     freopen_s(&pFile, "CONOUT$", "w", stdout);
-
     MessageBoxA(0, "Hooked ", "Bye", 0);
 
-
-    //addr_send = (DWORD)GetProcAddress(GetModuleHandle(TEXT("WS2_32.dll")), "send");
-    //hook there /////////////////////////
     DetourRestoreAfterWith();
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
+    DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
 
-    PVOID func = DetourFindFunction("WS2_32.dll", "send");
-    
-    DetourAttach(&(PVOID&)func, (PVOID)MySend);
-
-    DetourTransactionCommit();
-    ////////////////////////
-
+    if (DetourTransactionCommit() == NO_ERROR)
+        MessageBox(0, "send() detoured successfully", "heh", MB_OK);
 
     //exiting
     while (true)
