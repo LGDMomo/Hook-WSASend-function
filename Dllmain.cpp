@@ -2,7 +2,6 @@
 #include <windows.h>
 #include <iostream>
 #include"detours.h"
-
 #define WSAAPI                  FAR PASCAL
 
 //Constant
@@ -10,15 +9,14 @@ HMODULE myhmod;
 FILE* pFile = nullptr;
 
 //struct for correct data handling
-
 typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
-
 typedef struct _WSABUF {
     ULONG len;     /* the length of the buffer */
     _Field_size_bytes_(len) CHAR FAR* buf; /* the pointer to the buffer */
 } WSABUF, FAR* LPWSABUF;
-
 typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError,IN DWORD cbTransferred,IN LPWSAOVERLAPPED lpOverlapped,IN DWORD dwFlags);
+
+
 
 //Proto functions
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
@@ -30,6 +28,7 @@ HMODULE hLib = LoadLibrary("WS2_32.dll");
 //get the internal function 
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
+
 
 //For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
