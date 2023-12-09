@@ -22,9 +22,12 @@ typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError,IN D
 
 
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
+typedef int (WINAPI* WSASendPtr)(SOCKET s,LPWSABUF lpBuffers,DWORD dwBufferCount,LPDWORD lpNumberOfBytesSent,DWORD dwFlags,LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
+
+
 HMODULE hLib = LoadLibrary("WS2_32.dll");
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
-
+WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
 
 //For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
@@ -32,18 +35,16 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     std::wcout << "===============================" << std::endl;
     std::cout << "Buffer : " << buf << std::endl;
     std::cout << "Buffer length : " << len << std::endl;
-    std::wcout << "===============================" << std::endl;
     return pSend(s, buf, len, flags);
 }
 
 //For WSASEnd()                        //,DWORD dwFlags,LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-int WSAAPI HookWSASend(SOCKET s,LPWSABUF lpBuffers,DWORD dwBufferCount,LPDWORD lpNumberOfBytesSent)
+int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
     std::wcout << "===============================" << std::endl;
     std::wcout << L"Number of bytes sent : " << *lpNumberOfBytesSent << std::endl;
     std::wcout << L"Buffer (encrypted) : " << *lpBuffers->buf << std::endl;
-    std::wcout << "===============================" << std::endl;
-    return 0;
+    return pWsaSend(s,lpBuffers,dwBufferCount,lpNumberOfBytesSent,dwFlags,lpOverlapped,lpCompletionRoutine);
 }
 
 
@@ -54,9 +55,18 @@ int Main()
     MessageBoxA(0, "Hooked ", "Bye", 0);
 
     DetourRestoreAfterWith();
+
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
     DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
+
+    if (DetourTransactionCommit() == NO_ERROR)
+        MessageBox(0, "send() detoured successfully", "heh", MB_OK);
+
+
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourAttach(&(PVOID&)pSend, (PVOID)MyWSASend);
 
     if (DetourTransactionCommit() == NO_ERROR)
         MessageBox(0, "send() detoured successfully", "heh", MB_OK);
