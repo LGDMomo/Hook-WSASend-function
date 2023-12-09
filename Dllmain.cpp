@@ -20,12 +20,14 @@ typedef struct _WSABUF {
 
 typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError,IN DWORD cbTransferred,IN LPWSAOVERLAPPED lpOverlapped,IN DWORD dwFlags);
 
-
+//Proto functions
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
 typedef int (WINAPI* WSASendPtr)(SOCKET s,LPWSABUF lpBuffers,DWORD dwBufferCount,LPDWORD lpNumberOfBytesSent,DWORD dwFlags,LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
 
-
+//Lib
 HMODULE hLib = LoadLibrary("WS2_32.dll");
+
+//get the internal function 
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
 
@@ -54,22 +56,31 @@ int Main()
     freopen_s(&pFile, "CONOUT$", "w", stdout);
     MessageBoxA(0, "Hooked ", "Bye", 0);
 
+    const char* Choice = "send";
+
     DetourRestoreAfterWith();
 
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
+    //for send
+    if (Choice == "send")
+    {
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+        DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
 
-    if (DetourTransactionCommit() == NO_ERROR)
-        MessageBox(0, "send() detoured successfully", "heh", MB_OK);
+        if (DetourTransactionCommit() == NO_ERROR)
+            MessageBox(0, "send() detoured successfully", "heh", MB_OK);
+    }
+    
 
+    if (Choice == "WSASend")
+    {
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+        DetourAttach(&(PVOID&)pWsaSend, (PVOID)MyWSASend);
 
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourAttach(&(PVOID&)pSend, (PVOID)MyWSASend);
-
-    if (DetourTransactionCommit() == NO_ERROR)
-        MessageBox(0, "send() detoured successfully", "heh", MB_OK);
+        if (DetourTransactionCommit() == NO_ERROR)
+            MessageBox(0, "send() detoured successfully", "heh", MB_OK);
+    }
 
     //exiting
     while (true)
