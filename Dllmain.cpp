@@ -7,6 +7,8 @@
 //Constant
 HMODULE myhmod;
 FILE* pFile = nullptr;
+HWND hwndOutput = nullptr;
+
 
 //struct for correct data handling
 typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
@@ -16,6 +18,12 @@ typedef struct _WSABUF {
 } WSABUF, FAR* LPWSABUF;
 typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError, IN DWORD cbTransferred, IN LPWSAOVERLAPPED lpOverlapped, IN DWORD dwFlags);
 
+//add text
+void AppendText(const char* text) {
+    int len = GetWindowTextLength(hwndOutput);
+    SendMessage(hwndOutput, EM_SETSEL, len, len);
+    SendMessage(hwndOutput, EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(text));
+}
 
 
 //Proto functions
@@ -37,6 +45,9 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     std::cout << "Buffer : \n" << buf << std::endl;
     std::cout << "Buffer length : " << len << std::endl;
     std::cout << "Flag : " << flags << std::endl;
+    
+    AppendText(buf);
+
     BackupSocket = s;
 
     return pSend(s, buf, len, flags);
@@ -48,7 +59,26 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
     std::wcout << "===============================" << std::endl;
     std::wcout << L"Number of bytes sent : " << *lpNumberOfBytesSent << std::endl;
     std::wcout << L"Buffer : \n" << *lpBuffers->buf << std::endl;
+
+    AppendText(lpBuffers->buf);
+
     return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
+}
+
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+    case WM_CREATE:
+        hwndOutput = CreateWindowEx(WS_EX_CLIENTEDGE, (LPCSTR)"EDIT", nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+            10, 10, 600, 400, hwnd, nullptr, nullptr, nullptr);
+        break;
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        break;
+    default:
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+    return 0;
 }
 
 
@@ -58,7 +88,18 @@ int Main()
     freopen_s(&pFile, "CONOUT$", "w", stdout);
     MessageBoxA(0, "Hooked ", "Bye", 0);
 
-    const char* Choice = "WSASend";
+
+    WNDCLASS wc = {};
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = GetModuleHandle(nullptr);
+    wc.lpszClassName = (LPCSTR)"MyWindowClass";
+
+    RegisterClass(&wc);
+    HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, nullptr, nullptr, wc.hInstance, nullptr);
+
+
+
+    const char* Choice = "send";
 
     DetourRestoreAfterWith();
 
@@ -82,6 +123,16 @@ int Main()
 
         if (DetourTransactionCommit() == NO_ERROR)
             MessageBox(0, "WSASend() detoured successfully", "heh", MB_OK);
+    }
+
+
+    ShowWindow(hwnd, SW_SHOWNORMAL);
+    UpdateWindow(hwnd);
+
+    MSG msg = {};
+    while (GetMessage(&msg, nullptr, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
     }
 
     //exiting
