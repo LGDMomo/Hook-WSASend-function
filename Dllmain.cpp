@@ -8,7 +8,7 @@
 HMODULE myhmod;
 FILE* pFile = nullptr;
 HWND hwndOutput = nullptr;
-
+HWND hwndInput = nullptr;
 
 //struct for correct data handling
 typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
@@ -90,8 +90,10 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE:
+        hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+            10, 340, 760, 80, hwnd, nullptr, nullptr, nullptr);
         hwndOutput = CreateWindowEx(WS_EX_CLIENTEDGE, (LPCSTR)"EDIT", nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
-            10, 10, 600, 400, hwnd, nullptr, nullptr, nullptr);
+            10, 10, 760, 320, hwnd, nullptr, nullptr, nullptr);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -116,7 +118,7 @@ int Main()
     wc.lpszClassName = (LPCSTR)"MyWindowClass";
 
     RegisterClass(&wc);
-    HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 640, 480, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 800, 560, nullptr, nullptr, wc.hInstance, nullptr);
 
 
 
