@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <iostream>
 #include"detours.h"
+#include<string>
 #define WSAAPI                  FAR PASCAL
 #define IDC_READ_BUTTON 1001 // Adjust the value as needed
 
@@ -55,12 +56,18 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     AppendText("\n");
 
     AppendText("Buffer Length: ");
-    AppendText((const char*)len);
+    std::string myLen = std::to_string(len);
+    const char* LenConstChar = myLen.c_str();
+    AppendText(LenConstChar);
 
     AppendText("\n");
 
     AppendText("Flags : ");
-    AppendText((const char*)flags);
+    std::string myFlags = std::to_string(flags);
+    const char* FlagsConstChar = myFlags.c_str();
+    AppendText(FlagsConstChar);
+
+
 
     AppendText("\n");
 
