@@ -3,6 +3,9 @@
 #include <iostream>
 #include"detours.h"
 #include<string>
+#include<winsock.h>
+#include <sstream>
+
 #define WSAAPI                  FAR PASCAL
 #define IDC_READ_BUTTON 1001 // Adjust the value as needed
 
@@ -12,6 +15,7 @@ FILE* pFile = nullptr;
 HWND hwndOutput = nullptr;
 HWND hwndInput = nullptr;
 HWND hwndInputLen = nullptr;
+HWND hwndInputSocket = nullptr;
 
 //struct for correct data handling
 typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
@@ -28,6 +32,22 @@ void AppendText(const char* text) {
     SendMessage(hwndOutput, EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(text));
 }
 
+// Function to convert SOCKET to string
+std::string SocketToString(SOCKET socket) {
+    std::ostringstream oss;
+    oss << socket;
+    return oss.str();
+}
+
+// Function to convert string to SOCKET
+SOCKET StringToSocket(const std::string& str) {
+    std::istringstream iss(str);
+    SOCKET socketValue;
+    iss >> socketValue;
+    return socketValue;
+}
+
+SOCKET OldSocket;
 
 //Proto functions
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
@@ -39,7 +59,6 @@ HMODULE hLib = LoadLibrary("WS2_32.dll");
 //get the internal function 
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
-SOCKET BackupSocket;
 
 //For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
@@ -67,12 +86,15 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     const char* FlagsConstChar = myFlags.c_str();
     AppendText(FlagsConstChar);
 
+    AppendText("\n");
 
+    AppendText("Socket : ");
+    std::string socket_string = SocketToString(s);
+    AppendText(socket_string.c_str());
 
     AppendText("\n");
 
-    BackupSocket = s;
-
+    OldSocket = s;
     return pSend(s, buf, len, flags);
 }
 
@@ -102,16 +124,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
     //creating the menu and text box and more
     case WM_CREATE:
-        hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+        hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL,
             10, 340, 760, 70, hwnd, nullptr, nullptr, nullptr);
 
-        hwndInputLen = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+        hwndInputLen = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE | ES_AUTOVSCROLL,
             10, 415, 760, 30, hwnd, nullptr, nullptr, nullptr);
+
+        hwndInputSocket = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE | ES_AUTOVSCROLL,
+            10, 450, 760, 30, hwnd, nullptr, nullptr, nullptr);
 
         hwndOutput = CreateWindowEx(WS_EX_CLIENTEDGE, (LPCSTR)"EDIT", nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
             10, 10, 760, 320, hwnd, nullptr, nullptr, nullptr);
 
-        CreateWindow("BUTTON", "Send Packet", WS_CHILD | WS_VISIBLE, 10, 460, 90, 45, hwnd, (HMENU)IDC_READ_BUTTON, nullptr, nullptr);
+        CreateWindow("BUTTON", "Send Packet", WS_CHILD | WS_VISIBLE, 10, 500, 90, 45, hwnd, (HMENU)IDC_READ_BUTTON, nullptr, nullptr);
         break;
     //for button commands and stuff
     case WM_COMMAND:
@@ -122,14 +147,39 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             GetWindowText(hwndInput, buffer, sizeof(buffer));
 
             char BufferLen[20];
-            GetWindowText(hwndInput, BufferLen, sizeof(BufferLen));
+            GetWindowText(hwndInputLen, BufferLen, sizeof(BufferLen));
 
-            // Do something with the text (for example, print it to the output)
-            AppendText("\n\nText from Input Box:\n");
-            AppendText(buffer);
+            char BufferSocket[20];
+            GetWindowText(hwndInputSocket, BufferSocket, sizeof(BufferSocket));
 
+            SOCKET NewSocket = StringToSocket(BufferSocket);
+            if (OldSocket == NewSocket)
+            {
+                AppendText("\n");
+                AppendText("Same Socket so it another probleme chef");
+                AppendText("\n");
+
+            }
             //Sending the packet with the parameters read from the input boxes
-            pSend(BackupSocket, (const char*)buffer, (int)BufferLen, 0);
+            int SentBytes = pSend(NewSocket, (const char*)buffer, (int)BufferLen, 0);
+            
+            std::string MyBytesSent = std::to_string(SentBytes);
+            const char* ConstCharBytesSent = MyBytesSent.c_str();
+
+            if (SentBytes == SOCKET_ERROR) {
+                // An error occurred, print the error code
+                int errorCode = WSAGetLastError();
+
+                std::string errorMessage = "Error sending the packet. Error code: " + std::to_string(errorCode);
+                AppendText(errorMessage.c_str());
+            }
+            else {
+                std::string MyBytesSent = std::to_string(SentBytes);
+                const char* ConstCharBytesSent = MyBytesSent.c_str();
+                AppendText("Sent the packet and sent : ");
+                AppendText(ConstCharBytesSent);
+                AppendText(" bytes");
+            }
         }
         break;
 
@@ -154,7 +204,7 @@ int Main()
     wc.lpszClassName = (LPCSTR)"MyWindowClass";
 
     RegisterClass(&wc);
-    HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 800, 560, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 800, 600, nullptr, nullptr, wc.hInstance, nullptr);
 
 
 
