@@ -71,8 +71,8 @@ SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 ConnectCustom pConnect = (ConnectCustom)GetProcAddress(hLib, "connect");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
 
-
-
+int SERVER_IP;
+int PORT;
 //For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
@@ -128,7 +128,7 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
     return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
 
-/*int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
+int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
 {
     // Assuming sAddr is of type SOCKADDR_IN
     const sockaddr_in* clientService = reinterpret_cast<const sockaddr_in*>(sAddr);
@@ -137,17 +137,27 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
     std::string MyIpAddress = std::to_string(ipAddress);
     const char* IpConstChar = MyIpAddress.c_str();
 
+    SERVER_IP = static_cast<int>(ipAddress);
+    PORT = static_cast<int>(ntohs(clientService->sin_port));
+
+    AppendText("\n");
     AppendText("IP address being used is: ");
     AppendText(IpConstChar);
+    AppendText("\n");
 
-
-    // You can also print the port if needed
     AppendText("Port being used is: ");
     AppendText(std::to_string(ntohs(clientService->sin_port)).c_str());
+    AppendText("\n");
+
+    //unhook the function cuz we dont need it anymore
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
+    DetourTransactionCommit();
 
     return 0;
 }
-*/
+
 
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -194,8 +204,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 
             clientService.sin_family = AF_INET;
-            clientService.sin_addr.s_addr = 1797002856;
-            clientService.sin_port = htons(80);
+            clientService.sin_addr.s_addr = SERVER_IP;//1797002856;//Ip geomtry dash ip
+            clientService.sin_port = htons(PORT);//htons(80); // HTTP Port
+
 
             int iResult = connect(ConnectSocket,(SOCKADDR*) &clientService, sizeof(clientService));
             if (iResult == SOCKET_ERROR) {
@@ -281,7 +292,7 @@ int Main()
         DetourUpdateThread(GetCurrentThread());
 
         DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
-        //DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
+        DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
 
         DetourTransactionCommit();
     }
