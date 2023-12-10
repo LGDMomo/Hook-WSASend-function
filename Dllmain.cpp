@@ -4,11 +4,13 @@
 #include"detours.h"
 #define WSAAPI                  FAR PASCAL
 #define IDC_READ_BUTTON 1001 // Adjust the value as needed
+
 //Constant
 HMODULE myhmod;
 FILE* pFile = nullptr;
 HWND hwndOutput = nullptr;
 HWND hwndInput = nullptr;
+HWND hwndInputLen = nullptr;
 
 //struct for correct data handling
 typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
@@ -89,15 +91,41 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
+
+
+    //creating the menu and text box and more
     case WM_CREATE:
         hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
-            10, 340, 760, 100, hwnd, nullptr, nullptr, nullptr);
+            10, 340, 760, 70, hwnd, nullptr, nullptr, nullptr);
+
+        hwndInputLen = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+            10, 415, 760, 30, hwnd, nullptr, nullptr, nullptr);
 
         hwndOutput = CreateWindowEx(WS_EX_CLIENTEDGE, (LPCSTR)"EDIT", nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
             10, 10, 760, 320, hwnd, nullptr, nullptr, nullptr);
 
         CreateWindow("BUTTON", "Send Packet", WS_CHILD | WS_VISIBLE, 10, 460, 90, 45, hwnd, (HMENU)IDC_READ_BUTTON, nullptr, nullptr);
         break;
+    //for button commands and stuff
+    case WM_COMMAND:
+        // Handle button click
+        if (LOWORD(wParam) == IDC_READ_BUTTON) {
+            // Read text from the input box
+            char buffer[1024]; // Adjust the buffer size as needed
+            GetWindowText(hwndInput, buffer, sizeof(buffer));
+
+            char BufferLen[20];
+            GetWindowText(hwndInput, BufferLen, sizeof(BufferLen));
+
+            // Do something with the text (for example, print it to the output)
+            AppendText("\n\nText from Input Box:\n");
+            AppendText(buffer);
+
+            //Sending the packet with the parameters read from the input boxes
+            pSend(BackupSocket, (const char*)buffer, (int)BufferLen, 0);
+        }
+        break;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
