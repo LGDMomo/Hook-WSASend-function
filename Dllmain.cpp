@@ -3,7 +3,7 @@
 #include <iostream>
 #include"detours.h"
 #define WSAAPI                  FAR PASCAL
-
+#define IDC_READ_BUTTON 1001 // Adjust the value as needed
 //Constant
 HMODULE myhmod;
 FILE* pFile = nullptr;
@@ -45,7 +45,7 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     //std::cout << "Buffer : \n" << buf << std::endl;
     //std::cout << "Buffer length : " << len << std::endl;
     //std::cout << "Flag : " << flags << std::endl;
-    
+
     AppendText("=======================================\n");
     AppendText("Buffer : \n");
     AppendText(buf);
@@ -90,10 +90,13 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE:
-        hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-            10, 340, 760, 80, hwnd, nullptr, nullptr, nullptr);
+        hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE,
+            10, 340, 760, 100, hwnd, nullptr, nullptr, nullptr);
+
         hwndOutput = CreateWindowEx(WS_EX_CLIENTEDGE, (LPCSTR)"EDIT", nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
             10, 10, 760, 320, hwnd, nullptr, nullptr, nullptr);
+
+        CreateWindow("BUTTON", "Send Packet", WS_CHILD | WS_VISIBLE, 10, 460, 90, 45, hwnd, (HMENU)IDC_READ_BUTTON, nullptr, nullptr);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -109,8 +112,6 @@ int Main()
 {
     //AllocConsole();
     //freopen_s(&pFile, "CONOUT$", "w", stdout);
-    MessageBoxA(0, "Hooked ", "Bye", 0);
-
 
     WNDCLASS wc = {};
     wc.lpfnWndProc = WndProc;
@@ -132,9 +133,7 @@ int Main()
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
-
-        if (DetourTransactionCommit() == NO_ERROR)
-            MessageBox(0, "send() detoured successfully", "heh", MB_OK);
+        DetourTransactionCommit();
     }
 
 
@@ -143,9 +142,7 @@ int Main()
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&)pWsaSend, (PVOID)MyWSASend);
-
-        if (DetourTransactionCommit() == NO_ERROR)
-            MessageBox(0, "WSASend() detoured successfully", "heh", MB_OK);
+        DetourTransactionCommit();
     }
 
 
