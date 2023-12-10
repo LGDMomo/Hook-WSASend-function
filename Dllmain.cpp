@@ -223,13 +223,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             else
             {
+                AppendText("\n");
                 AppendText("Socket created successfully !");
                 AppendText("\n");
             }
 
 
             int SentBytes = pSend(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0);
-            
 
             std::string MyBytesSent = std::to_string(SentBytes);
             const char* ConstCharBytesSent = MyBytesSent.c_str();
