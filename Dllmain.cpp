@@ -46,7 +46,16 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     std::cout << "Buffer length : " << len << std::endl;
     std::cout << "Flag : " << flags << std::endl;
     
+    AppendText("=======================================");
+    AppendText("Buffer : ");
     AppendText(buf);
+
+    AppendText("Buffer Length: ");
+    AppendText((const char*)len);
+
+    AppendText("Flags : ");
+    AppendText((const char*)flags);
+
 
     BackupSocket = s;
 
