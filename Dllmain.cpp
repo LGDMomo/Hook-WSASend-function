@@ -46,14 +46,15 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     std::cout << "Buffer length : " << len << std::endl;
     std::cout << "Flag : " << flags << std::endl;
     
-    AppendText("=======================================");
-    AppendText("Buffer : ");
+    AppendText("=======================================\n");
+    AppendText("Buffer : \n");
     AppendText(buf);
+    AppendText("\n");
 
-    AppendText("Buffer Length: ");
+    AppendText("Buffer Length: \n");
     AppendText((const char*)len);
 
-    AppendText("Flags : ");
+    AppendText("Flags : \n");
     AppendText((const char*)flags);
 
 
