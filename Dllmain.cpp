@@ -28,14 +28,17 @@ HMODULE hLib = LoadLibrary("WS2_32.dll");
 //get the internal function 
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
-
+SOCKET BackupSocket;
 
 //For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
     std::wcout << "===============================" << std::endl;
-    std::cout << "Buffer : " << buf << std::endl;
+    std::cout << "Buffer : \n" << buf << std::endl;
     std::cout << "Buffer length : " << len << std::endl;
+    std::cout << "Flag : " << flags << std::endl;
+    BackupSocket = s;
+
     return pSend(s, buf, len, flags);
 }
 
@@ -44,7 +47,7 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 {
     std::wcout << "===============================" << std::endl;
     std::wcout << L"Number of bytes sent : " << *lpNumberOfBytesSent << std::endl;
-    std::wcout << L"Buffer (encrypted) : " << *lpBuffers->buf << std::endl;
+    std::wcout << L"Buffer : \n" << *lpBuffers->buf << std::endl;
     return pWsaSend(s,lpBuffers,dwBufferCount,lpNumberOfBytesSent,dwFlags,lpOverlapped,lpCompletionRoutine);
 }
 
