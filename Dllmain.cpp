@@ -41,22 +41,26 @@ SOCKET BackupSocket;
 //For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
-    std::wcout << "===============================" << std::endl;
-    std::cout << "Buffer : \n" << buf << std::endl;
-    std::cout << "Buffer length : " << len << std::endl;
-    std::cout << "Flag : " << flags << std::endl;
+    //std::wcout << "===============================" << std::endl;
+    //std::cout << "Buffer : \n" << buf << std::endl;
+    //std::cout << "Buffer length : " << len << std::endl;
+    //std::cout << "Flag : " << flags << std::endl;
     
     AppendText("=======================================\n");
     AppendText("Buffer : \n");
     AppendText(buf);
+
     AppendText("\n");
 
-    AppendText("Buffer Length: \n");
+    AppendText("Buffer Length: ");
     AppendText((const char*)len);
 
-    AppendText("Flags : \n");
+    AppendText("\n");
+
+    AppendText("Flags : ");
     AppendText((const char*)flags);
 
+    AppendText("\n");
 
     BackupSocket = s;
 
@@ -66,11 +70,18 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 //For WSASEnd()                      
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-    std::wcout << "===============================" << std::endl;
-    std::wcout << L"Number of bytes sent : " << *lpNumberOfBytesSent << std::endl;
-    std::wcout << L"Buffer : \n" << *lpBuffers->buf << std::endl;
+    //std::wcout << "===============================" << std::endl;
+    //std::wcout << L"Number of bytes sent : " << *lpNumberOfBytesSent << std::endl;
+    //std::wcout << L"Buffer : \n" << *lpBuffers->buf << std::endl;
 
+    AppendText("=======================================\n");
+    AppendText("Buffer : \n");
     AppendText(lpBuffers->buf);
+
+    AppendText("\n");
+
+    AppendText("Number of bytes sent : ");
+    AppendText((const char*)lpNumberOfBytesSent);
 
     return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
@@ -94,8 +105,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 int Main()
 {
-    AllocConsole();
-    freopen_s(&pFile, "CONOUT$", "w", stdout);
+    //AllocConsole();
+    //freopen_s(&pFile, "CONOUT$", "w", stdout);
     MessageBoxA(0, "Hooked ", "Bye", 0);
 
 
@@ -158,7 +169,7 @@ int Main()
 
     MessageBoxA(0, "UnInjecting", "Bye", 0);
     FreeLibraryAndExitThread((HMODULE)myhmod, 0);
-    FreeConsole();
+    //FreeConsole();
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  reason, LPVOID lpReserved)
