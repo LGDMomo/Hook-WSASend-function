@@ -14,13 +14,13 @@ typedef struct _WSABUF {
     ULONG len;     /* the length of the buffer */
     _Field_size_bytes_(len) CHAR FAR* buf; /* the pointer to the buffer */
 } WSABUF, FAR* LPWSABUF;
-typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError,IN DWORD cbTransferred,IN LPWSAOVERLAPPED lpOverlapped,IN DWORD dwFlags);
+typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError, IN DWORD cbTransferred, IN LPWSAOVERLAPPED lpOverlapped, IN DWORD dwFlags);
 
 
 
 //Proto functions
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
-typedef int (WINAPI* WSASendPtr)(SOCKET s,LPWSABUF lpBuffers,DWORD dwBufferCount,LPDWORD lpNumberOfBytesSent,DWORD dwFlags,LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
+typedef int (WINAPI* WSASendPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
 
 //Lib
 HMODULE hLib = LoadLibrary("WS2_32.dll");
@@ -42,13 +42,13 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     return pSend(s, buf, len, flags);
 }
 
-//For WSASEnd()                        //,DWORD dwFlags,LPWSAOVERLAPPED lpOverlapped,LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+//For WSASEnd()                      
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
     std::wcout << "===============================" << std::endl;
     std::wcout << L"Number of bytes sent : " << *lpNumberOfBytesSent << std::endl;
     std::wcout << L"Buffer : \n" << *lpBuffers->buf << std::endl;
-    return pWsaSend(s,lpBuffers,dwBufferCount,lpNumberOfBytesSent,dwFlags,lpOverlapped,lpCompletionRoutine);
+    return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
 
 
@@ -58,7 +58,7 @@ int Main()
     freopen_s(&pFile, "CONOUT$", "w", stdout);
     MessageBoxA(0, "Hooked ", "Bye", 0);
 
-    const char* Choice = "send";
+    const char* Choice = "WSASend";
 
     DetourRestoreAfterWith();
 
@@ -72,7 +72,7 @@ int Main()
         if (DetourTransactionCommit() == NO_ERROR)
             MessageBox(0, "send() detoured successfully", "heh", MB_OK);
     }
-    
+
 
     if (Choice == "WSASend")
     {
@@ -81,7 +81,7 @@ int Main()
         DetourAttach(&(PVOID&)pWsaSend, (PVOID)MyWSASend);
 
         if (DetourTransactionCommit() == NO_ERROR)
-            MessageBox(0, "send() detoured successfully", "heh", MB_OK);
+            MessageBox(0, "WSASend() detoured successfully", "heh", MB_OK);
     }
 
     //exiting
