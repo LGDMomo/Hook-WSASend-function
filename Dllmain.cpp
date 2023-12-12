@@ -111,7 +111,7 @@ int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
     }
 
     AppendText("\n");
-    return pRecv(s, buf, len, flags);
+    return result;
 }
 
 //For WSASEnd()                      
