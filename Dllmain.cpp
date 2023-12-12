@@ -64,8 +64,7 @@ int PORT;
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
     AppendText("=======================================\n");
-    AppendText("Send() : \n");
-    AppendText("Buffer : \n");
+    AppendText("Sent Data : \n");
     AppendText(buf);
 
     AppendText("\n");
@@ -98,6 +97,13 @@ int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
     {
         AppendText("Received Data : \n");
         AppendText(buf);
+        AppendText("\n");
+
+        AppendText("Buffer Length : \n");
+        std::string myLen = std::to_string(len);
+        const char* LenConstChar = myLen.c_str();
+        AppendText(LenConstChar);
+
         AppendText("\n");
     }
     else
