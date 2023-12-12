@@ -64,7 +64,7 @@ int PORT;
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
     AppendText("=======================================\n");
-    AppendText("Sent Data : \n");
+    AppendText("Send() Sent Data : \n");
     AppendText(buf);
 
     AppendText("\n");
@@ -124,7 +124,7 @@ int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
     AppendText("=======================================\n");
-    AppendText("Buffer : \n");
+    AppendText("WSASend() Sent Data : \n");
 
     for (DWORD i = 0; i < dwBufferCount; ++i)
     {
@@ -132,16 +132,20 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
         const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
         DWORD bufferLength = lpBuffers[i].len;
 
+        std::string myLen = std::to_string(bufferLength);
+        const char* LenConstChar = myLen.c_str();
+
         // Append buffer content to the text
         AppendText(bufferContent);
+        AppendText("\n");
+
+
+        AppendText("Buffer length : \n");
+        AppendText(LenConstChar);
     }
 
-    AppendText("\n");
 
-    AppendText("Buffer Count : ");
-    AppendText(std::to_string(*lpNumberOfBytesSent).c_str());
     AppendText("\n");
-
 
     return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
@@ -291,32 +295,19 @@ int Main()
     HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME, CW_USEDEFAULT, CW_USEDEFAULT, 800, 635, nullptr, nullptr, wc.hInstance, nullptr);
 
 
-    const char* Choice = "send";
-
     //Init hook
     DetourRestoreAfterWith();
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
 
-    //for send
-    if (Choice == "send")
-    {
-        DetourTransactionBegin();
-        DetourUpdateThread(GetCurrentThread());
+    DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
+    DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
+    DetourAttach(&(PVOID&)pRecv, (PVOID)MyRecv);
+    DetourAttach(&(PVOID&)pWsaSend, (PVOID)MyWSASend);
 
-        DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
-        DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
-        DetourAttach(&(PVOID&)pRecv, (PVOID)MyRecv);
-
-        DetourTransactionCommit();
-    }
+    DetourTransactionCommit();
 
 
-    if (Choice == "WSASend")
-    {
-        DetourTransactionBegin();
-        DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)pWsaSend, (PVOID)MyWSASend);
-        DetourTransactionCommit();
-    }
 
 
     ShowWindow(hwnd, SW_SHOWNORMAL);
