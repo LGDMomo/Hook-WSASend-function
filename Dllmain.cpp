@@ -44,6 +44,7 @@ SOCKET ConnectSocket = INVALID_SOCKET;
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
 typedef int (WINAPI* WSASendPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
 typedef int (WINAPI* ConnectCustom)(SOCKET s, const SOCKADDR* sAddr, int nameLen);
+typedef int (WINAPI* RecvCustom)(SOCKET s, const char* buf, int len, int flags);
 
 
 //Lib
@@ -53,18 +54,17 @@ HMODULE hLib = LoadLibrary("WS2_32.dll");
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 ConnectCustom pConnect = (ConnectCustom)GetProcAddress(hLib, "connect");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
+RecvCustom pRecv = (RecvCustom)GetProcAddress(hLib, "recv");
+
+
 
 int SERVER_IP;
 int PORT;
 //For send()
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
-    //std::wcout << "===============================" << std::endl;
-    //std::cout << "Buffer : \n" << buf << std::endl;
-    //std::cout << "Buffer length : " << len << std::endl;
-    //std::cout << "Flag : " << flags << std::endl;
-
     AppendText("=======================================\n");
+    AppendText("Send() : \n");
     AppendText("Buffer : \n");
     AppendText(buf);
 
@@ -86,25 +86,60 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     return pSend(s, buf, len, flags);
 }
 
+//For recv()
+int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
+{
+    AppendText("=======================================\n");
+
+    // Call the original recv() function
+    int result = pRecv(s, buf, len, flags);
+
+    if (result >= 0)
+    {
+        AppendText("Received Data : \n");
+        AppendText(buf);
+        AppendText("\n");
+    }
+    else
+    {
+        // Handle error if needed
+        // You can log the error code or take appropriate action
+        AppendText("Recv() failed with error code: ");
+        std::string errorCode = std::to_string(WSAGetLastError());
+        AppendText(errorCode.c_str());
+        AppendText("\n");
+    }
+
+    AppendText("\n");
+    return pRecv(s, buf, len, flags);
+}
+
 //For WSASEnd()                      
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-    //std::wcout << "===============================" << std::endl;
-    //std::wcout << L"Number of bytes sent : " << *lpNumberOfBytesSent << std::endl;
-    //std::wcout << L"Buffer : \n" << *lpBuffers->buf << std::endl;
-
     AppendText("=======================================\n");
     AppendText("Buffer : \n");
-    AppendText(lpBuffers->buf);
+
+    for (DWORD i = 0; i < dwBufferCount; ++i)
+    {
+        // Assuming lpBuffers[i].buf is a pointer to the buffer and lpBuffers[i].len is the length
+        const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
+        DWORD bufferLength = lpBuffers[i].len;
+
+        // Append buffer content to the text
+        AppendText(bufferContent);
+    }
 
     AppendText("\n");
 
-    AppendText("Number of bytes sent : ");
-    AppendText((const char*)lpNumberOfBytesSent);
+    AppendText("Buffer Count : ");
+    AppendText(std::to_string(*lpNumberOfBytesSent).c_str());
     AppendText("\n");
+
 
     return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
+
 
 int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
 {
@@ -172,22 +207,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             char BufferLen[20];
             GetWindowText(hwndInputLen, BufferLen, sizeof(BufferLen));
 
-            struct sockaddr_in clientService;
-
+            ///////////////////////////////////////////////////////////////////////SEND
             // Create a SOCKET for connecting to server
             ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-
             clientService.sin_family = AF_INET;
             clientService.sin_addr.s_addr = SERVER_IP;//1797002856;//Ip geomtry dash ip
             clientService.sin_port = htons(PORT);//htons(80); // HTTP Port
-
-
             int iResult = connect(ConnectSocket, (SOCKADDR*)&clientService, sizeof(clientService));
             if (iResult == SOCKET_ERROR) {
                 AppendText("connect failed with error: \n");
-
-                // An error occurred, print the error code
                 int errorCode = WSAGetLastError();
                 std::string errorMessage = "Connecting to the socket. Error code: " + std::to_string(errorCode);
                 AppendText(errorMessage.c_str());
@@ -200,14 +228,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             {
                 AppendText("\n");
                 AppendText("Socket created successfully !");
-                AppendText("\n");
             }
 
-
             int SentBytes = pSend(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0);
-
-            std::string MyBytesSent = std::to_string(SentBytes);
-            const char* ConstCharBytesSent = MyBytesSent.c_str();
 
             if (SentBytes == SOCKET_ERROR) {
                 // An error occurred, print the error code
@@ -217,15 +240,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 AppendText("\n");
             }
             else {
-                AppendText("\n");
-                std::string MyBytesSent = std::to_string(SentBytes);
-                const char* ConstCharBytesSent = MyBytesSent.c_str();
-                AppendText("Sent the packet and sent : ");
-                AppendText(ConstCharBytesSent);
-                AppendText(" bytes");
                 closesocket(ConnectSocket);
                 AppendText("\n");
             }
+
+            //Shutdown socket after packet sent by the cheat
+            shutdown(ConnectSocket, 1);
+
+            //char RecvBuffer[2048] = "";
+            //pRecv(ConnectSocket, RecvBuffer, sizeof(RecvBuffer), 0);
+            
+            closesocket(ConnectSocket);
+
+
+            //////////////////////////////////////////////////////////////////////////////////////////
         }
         if (LOWORD(wParam) == IDC_RESET_BUTTON) {
             //Reset the output box text
@@ -270,6 +298,7 @@ int Main()
 
         DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
         DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
+        DetourAttach(&(PVOID&)pRecv, (PVOID)MyRecv);
 
         DetourTransactionCommit();
     }
