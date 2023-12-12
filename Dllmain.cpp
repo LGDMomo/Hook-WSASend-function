@@ -43,6 +43,7 @@ SOCKET ConnectSocket = INVALID_SOCKET;
 //Proto functions
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
 typedef int (WINAPI* WSASendPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
+typedef int (WINAPI* WSARecvPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
 typedef int (WINAPI* ConnectCustom)(SOCKET s, const SOCKADDR* sAddr, int nameLen);
 typedef int (WINAPI* RecvCustom)(SOCKET s, const char* buf, int len, int flags);
 
@@ -55,12 +56,12 @@ SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
 ConnectCustom pConnect = (ConnectCustom)GetProcAddress(hLib, "connect");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
 RecvCustom pRecv = (RecvCustom)GetProcAddress(hLib, "recv");
-
+WSARecvPtr pWSARecv = (WSARecvPtr)GetProcAddress(hLib, "WSARecv");
 
 
 int SERVER_IP;
 int PORT;
-//For send()
+//For send() hook it to read the buffer and print it  
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
     AppendText("=======================================\n");
@@ -85,7 +86,7 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
     return pSend(s, buf, len, flags);
 }
 
-//For recv()
+//For recv() hook it to read the buffer and print it  
 int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
 {
     AppendText("=======================================\n");
@@ -95,7 +96,7 @@ int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
 
     if (result >= 0)
     {
-        AppendText("Received Data : \n");
+        AppendText("Recv : Received Data : \n");
         AppendText(buf);
         AppendText("\n");
 
@@ -120,7 +121,7 @@ int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
     return result;
 }
 
-//For WSASEnd()                      
+//For WSASEnd() hook it to read the buffer and print it                    
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
     AppendText("=======================================\n");
@@ -151,6 +152,45 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 }
 
 
+// For WSARecv() hook it to read the buffer and print it
+int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
+{
+    AppendText("=======================================\n");
+
+    // Call the original WSARecv() function
+    int result = pWSARecv(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, dwFlags, lpOverlapped, lpCompletionRoutine);
+
+    if (result == 0)
+    {
+        AppendText("WSARecv : Received Data : \n");
+        for (DWORD i = 0; i < dwBufferCount; ++i)
+        {
+            AppendText(lpBuffers[i].buf);
+        }
+        AppendText("\n");
+
+        AppendText("Buffer Length : \n");
+        std::string myLen = std::to_string(*lpNumberOfBytesRecvd);
+        const char* LenConstChar = myLen.c_str();
+        AppendText(LenConstChar);
+
+        AppendText("\n");
+    }
+    else
+    {
+        // Handle error if needed
+        // You can log the error code or take appropriate action
+        AppendText("WSARecv() failed with error code: ");
+        std::string errorCode = std::to_string(WSAGetLastError());
+        AppendText(errorCode.c_str());
+        AppendText("\n");
+    }
+
+    AppendText("\n");
+    return result;
+}
+
+//Hook the connect to get the IP and the PORT of the server for (send , recv)
 int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
 {
     // Assuming sAddr is of type SOCKADDR_IN
@@ -182,7 +222,7 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
 }
 
 
-
+//Events and stuff for the windows
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
 
@@ -304,10 +344,10 @@ int Main()
     DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
     DetourAttach(&(PVOID&)pRecv, (PVOID)MyRecv);
     DetourAttach(&(PVOID&)pWsaSend, (PVOID)MyWSASend);
+    DetourAttach(&(PVOID&)pWSARecv, (PVOID)MyWSARecv);
+
 
     DetourTransactionCommit();
-
-
 
 
     ShowWindow(hwnd, SW_SHOWNORMAL);
