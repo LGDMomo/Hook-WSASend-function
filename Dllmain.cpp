@@ -57,7 +57,7 @@ ConnectCustom pConnect = (ConnectCustom)GetProcAddress(hLib, "connect");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
 RecvCustom pRecv = (RecvCustom)GetProcAddress(hLib, "recv");
 WSARecvPtr pWSARecv = (WSARecvPtr)GetProcAddress(hLib, "WSARecv");
-SendToCustom pSendTo = (SendToCustom)GetProcAddress(hLib, "SendTo");
+SendToCustom pSendTo = (SendToCustom)GetProcAddress(hLib, "sendto");
 
 
 int SERVER_IP;
