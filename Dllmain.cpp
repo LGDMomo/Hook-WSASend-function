@@ -10,7 +10,7 @@
 #define WSAAPI                  FAR PASCAL
 #define IDC_READ_BUTTON 1001 // Adjust the value as needed
 #define IDC_RESET_BUTTON 1002 // Adjust the value as needed
-
+#define DEFAULT_PORT 27015
 
 //Constant
 HMODULE myhmod;
@@ -46,11 +46,10 @@ typedef int (WINAPI* WSASendPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCou
 typedef int (WINAPI* WSARecvPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
 typedef int (WINAPI* ConnectCustom)(SOCKET s, const SOCKADDR* sAddr, int nameLen);
 typedef int (WINAPI* RecvCustom)(SOCKET s, const char* buf, int len, int flags);
-typedef int (WINAPI* SendToCustom)(SOCKET s, const char* buf, int len, int flags, const sockaddr* to, int ToLen);
+typedef int (WINAPI* SendToCustom)(SOCKET s, const char* buf, int len, int flags,const sockaddr* to,int ToLen);
 
 //Lib
 HMODULE hLib = LoadLibrary("WS2_32.dll");
-
 
 //get the internal function 
 SendPtr pSend = (SendPtr)GetProcAddress(hLib, "send");
@@ -58,7 +57,7 @@ ConnectCustom pConnect = (ConnectCustom)GetProcAddress(hLib, "connect");
 WSASendPtr pWsaSend = (WSASendPtr)GetProcAddress(hLib, "WSASend");
 RecvCustom pRecv = (RecvCustom)GetProcAddress(hLib, "recv");
 WSARecvPtr pWSARecv = (WSARecvPtr)GetProcAddress(hLib, "WSARecv");
-SendToCustom pSendTo = (SendToCustom)GetProcAddress(hLib, "SendTo");
+SendToCustom pSendTo = (SendToCustom)GetProcAddress(hLib, "sendto");
 
 
 int SERVER_IP;
@@ -320,7 +319,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             closesocket(ConnectSocket);
 
             //////////////////////////////////////////////////////////////////////////////////////////
-
+            
             // sendto()
             // 
             //sockaddr_in RecvAddr;
@@ -364,18 +363,15 @@ int Main()
     RegisterClass(&wc);
     HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME, CW_USEDEFAULT, CW_USEDEFAULT, 800, 635, nullptr, nullptr, wc.hInstance, nullptr);
 
-    
-    std::cout << "Before init \n";
+    AppendText("Init\n");
     //Init hook
     if (DetourRestoreAfterWith())
     {
         AppendText("Before Init\n");
     }
-
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-
-
+    std::cout << pSend << std::endl;
     DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
     DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
     DetourAttach(&(PVOID&)pRecv, (PVOID)MyRecv);
@@ -387,8 +383,7 @@ int Main()
 
     DetourTransactionCommit();
 
-    AppendText("After all Init\n");
-    std::cout << "After all Init \n";
+
     ShowWindow(hwnd, SW_SHOWNORMAL);
     UpdateWindow(hwnd);
 
@@ -418,6 +413,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  reason, LPVOID lpReserved)
 {
     if (reason == DLL_PROCESS_ATTACH)
     {
+        DisableThreadLibraryCalls(hModule);
         myhmod = hModule;
         CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Main, 0, 0, 0);
     }
