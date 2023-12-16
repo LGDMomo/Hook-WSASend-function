@@ -1,15 +1,33 @@
-#pragma once
+
+#include <winsock2.h>
 #include <windows.h>
 #include <iostream>
 #include"detours.h"
 #include<string>
-#include<winsock.h>
 #include <sstream>
 
 #pragma comment(lib, "Ws2_32.lib")
 #define WSAAPI                  FAR PASCAL
 #define IDC_READ_BUTTON 1001 // Adjust the value as needed
 #define IDC_RESET_BUTTON 1002 // Adjust the value as needed
+
+#define IDC_CHECKBOX_SEND 1003
+#define IDC_CHECKBOX_SENDTO 1004
+#define IDC_CHECKBOX_WSASEND 1005
+
+#define IDC_CHECKBOX_RECV 1006
+#define IDC_CHECKBOX_RECVFROM 1007
+#define IDC_CHECKBOX_WSARECV 1008
+#define WSAEVENT HANDLE
+
+BOOL isSendChecked;
+BOOL isSendToChecked;
+BOOL isWsaSendChecked;
+
+BOOL isRecvChecked;
+BOOL isRecvFromChecked;
+BOOL isWSARecvChecked;
+
 #define DEFAULT_PORT 27015
 
 //Constant
@@ -21,13 +39,20 @@ HWND hwndInputLen = nullptr;
 
 
 //struct for correct data handling
-typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
-typedef struct _WSABUF {
-    ULONG len;     /* the length of the buffer */
-    _Field_size_bytes_(len) CHAR FAR* buf; /* the pointer to the buffer */
-} WSABUF, FAR* LPWSABUF;
-typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError, IN DWORD cbTransferred, IN LPWSAOVERLAPPED lpOverlapped, IN DWORD dwFlags);
+//typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
+//
+//typedef struct _WSABUF {
+//    ULONG len;     /* the length of the buffer */
+//    _Field_size_bytes_(len) CHAR FAR* buf; /* the pointer to the buffer */
+//} WSABUF, FAR* LPWSABUF;
+//typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError, IN DWORD cbTransferred, IN LPWSAOVERLAPPED lpOverlapped, IN DWORD dwFlags);
+//struct sockaddr_in clientService;
+//typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
+
 struct sockaddr_in clientService;
+
+
+
 
 //add text
 void AppendText(const char* text) {
@@ -59,129 +84,191 @@ RecvCustom pRecv = (RecvCustom)GetProcAddress(hLib, "recv");
 WSARecvPtr pWSARecv = (WSARecvPtr)GetProcAddress(hLib, "WSARecv");
 SendToCustom pSendTo = (SendToCustom)GetProcAddress(hLib, "sendto");
 
-
 int SERVER_IP;
 int PORT;
 
 int TO_SERVER_IP;
 int TO_PORT;
+
+int WSA_TO_SERVER_IP;
+int WSA_TO_PORT;
+
+
 //For send() hook it to read the buffer and print it  
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
-    AppendText("=======================================\n");
-    AppendText("Send() Sent Data : \n");
-    AppendText(buf);
-
-    AppendText("\n");
-
-    AppendText("Buffer Length: ");
-    std::string myLen = std::to_string(len);
-    const char* LenConstChar = myLen.c_str();
-    AppendText(LenConstChar);
-
-    AppendText("\n");
-
-    AppendText("Flags : ");
-    std::string myFlags = std::to_string(flags);
-    const char* FlagsConstChar = myFlags.c_str();
-    AppendText(FlagsConstChar);
-
-    AppendText("\n");
-    return pSend(s, buf, len, flags);
-}
-
-//For recv() hook it to read the buffer and print it  
-int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
-{
-    AppendText("=======================================\n");
-
-    // Call the original recv() function
-    int result = pRecv(s, buf, len, flags);
-
-    if (result >= 0)
-    {
-        AppendText("Recv : Received Data : \n");
+    //Check if its checked
+    if (isSendChecked == BST_CHECKED) {
+        AppendText("=======================================\n");
+        AppendText("Send() Sent Data : \n");
         AppendText(buf);
+
         AppendText("\n");
 
-        AppendText("Buffer Length : \n");
+        AppendText("Buffer Length: ");
         std::string myLen = std::to_string(len);
         const char* LenConstChar = myLen.c_str();
         AppendText(LenConstChar);
 
         AppendText("\n");
-    }
-    else
-    {
-        // Handle error if needed
-        // You can log the error code or take appropriate action
-        AppendText("Recv() failed with error code: ");
-        std::string errorCode = std::to_string(WSAGetLastError());
-        AppendText(errorCode.c_str());
+
+        AppendText("Flags : ");
+        std::string myFlags = std::to_string(flags);
+        const char* FlagsConstChar = myFlags.c_str();
+        AppendText(FlagsConstChar);
+
         AppendText("\n");
     }
-
-    AppendText("\n");
-    return result;
+    return pSend(s, buf, len, flags);
 }
 
 //For WSASEnd() hook it to read the buffer and print it                    
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-    AppendText("=======================================\n");
-    AppendText("WSASend() Sent Data : \n");
+    if (isWsaSendChecked == BST_CHECKED) {
 
-    for (DWORD i = 0; i < dwBufferCount; ++i)
-    {
-        // Assuming lpBuffers[i].buf is a pointer to the buffer and lpBuffers[i].len is the length
-        const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
-        DWORD bufferLength = lpBuffers[i].len;
+        AppendText("=======================================\n");
+        AppendText("WSASend() Sent Data : \n");
 
-        std::string myLen = std::to_string(bufferLength);
-        const char* LenConstChar = myLen.c_str();
+        for (DWORD i = 0; i < dwBufferCount; ++i)
+        {
+            // Assuming lpBuffers[i].buf is a pointer to the buffer and lpBuffers[i].len is the length
+            const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
+            DWORD bufferLength = lpBuffers[i].len;
 
-        // Append buffer content to the text
-        AppendText(bufferContent);
+            std::string myLen = std::to_string(bufferLength);
+            const char* LenConstChar = myLen.c_str();
+
+            // Append buffer content to the text
+            AppendText(bufferContent);
+            AppendText("\n");
+
+
+            AppendText("Buffer length : \n");
+            AppendText(LenConstChar);
+        }
+
+
         AppendText("\n");
-
-
-        AppendText("Buffer length : \n");
-        AppendText(LenConstChar);
     }
-
-
-    AppendText("\n");
-
     return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
+
+// For sendto() hook it to read the buffer and print it
+int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct sockaddr* to, int tolen)
+{
+    // Call the original sendto() function
+    int result = pSendTo(s, buf, len, flags, to, tolen);
+
+    if (isSendToChecked == BST_CHECKED) {
+        AppendText("=======================================\n");
+
+
+        // Assuming sAddr is of type SOCKADDR_IN
+        //Extracting the ip and port of the reciever 
+        const sockaddr_in* clientService = reinterpret_cast<const sockaddr_in*>(to);
+        unsigned long ipAddress = clientService->sin_addr.s_addr;
+
+        std::string MyIpAddress = std::to_string(ipAddress);
+        const char* IpConstChar = MyIpAddress.c_str();
+
+        TO_SERVER_IP = static_cast<int>(ipAddress);
+        TO_PORT = static_cast<int>(ntohs(clientService->sin_port));
+
+        if (result >= 0)
+        {
+            AppendText("SentTo() Sent Data : \n");
+            AppendText(buf);
+            AppendText("\n");
+
+            AppendText("Buffer Length : \n");
+            std::string myLen = std::to_string(len);
+            const char* LenConstChar = myLen.c_str();
+            AppendText(LenConstChar);
+
+            AppendText("\n");
+        }
+        else
+        {
+            //AppendText("sendto() failed with error code: ");
+            //std::string errorCode = std::to_string(WSAGetLastError());
+            //AppendText(errorCode.c_str());
+            //AppendText("\n");
+        }
+
+        AppendText("\n");
+    }
+    return result;
+}
+
 
 
 // For WSARecv() hook it to read the buffer and print it
 int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-    AppendText("=======================================\n");
+    
 
     // Call the original WSARecv() function
     int result = pWSARecv(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, dwFlags, lpOverlapped, lpCompletionRoutine);
-
-    if (result == 0)
-    {
-        AppendText("WSARecv : Received Data : \n");
-        for (DWORD i = 0; i < dwBufferCount; ++i)
+    if (isWSARecvChecked == BST_CHECKED) {
+        AppendText("=======================================\n");
+        if (result == 0)
         {
-            AppendText(lpBuffers[i].buf);
-        }
-        AppendText("\n");
+            AppendText("WSARecv : Received Data : \n");
+            for (DWORD i = 0; i < dwBufferCount; ++i)
+            {
+                AppendText(lpBuffers[i].buf);
+            }
+            AppendText("\n");
 
-        AppendText("Buffer Length : \n");
-        std::string myLen = std::to_string(*lpNumberOfBytesRecvd);
-        const char* LenConstChar = myLen.c_str();
-        AppendText(LenConstChar);
+            AppendText("Buffer Length : \n");
+            std::string myLen = std::to_string(*lpNumberOfBytesRecvd);
+            const char* LenConstChar = myLen.c_str();
+            AppendText(LenConstChar);
+
+            AppendText("\n");
+        }
 
         AppendText("\n");
     }
+    return result;
+}
 
-    AppendText("\n");
+
+//For recv() hook it to read the buffer and print it  
+int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
+{
+    
+
+    // Call the original recv() function
+    int result = pRecv(s, buf, len, flags);
+    if (isRecvChecked == BST_CHECKED) {
+        AppendText("=======================================\n");
+        if (result >= 0)
+        {
+            AppendText("Recv : Received Data : \n");
+            AppendText(buf);
+            AppendText("\n");
+
+            AppendText("Buffer Length : \n");
+            std::string myLen = std::to_string(len);
+            const char* LenConstChar = myLen.c_str();
+            AppendText(LenConstChar);
+
+            AppendText("\n");
+        }
+        else
+        {
+            // Handle error if needed
+            // You can log the error code or take appropriate action
+            //AppendText("Recv() failed with error code: ");
+            //std::string errorCode = std::to_string(WSAGetLastError());
+            //AppendText(errorCode.c_str());
+            //AppendText("\n");
+        }
+
+        AppendText("\n");
+    }
     return result;
 }
 
@@ -216,53 +303,6 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     return 0;
 }
 
-// For sendto() hook it to read the buffer and print it
-int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct sockaddr* to, int tolen)
-{
-    AppendText("=======================================\n");
-
-
-    // Assuming sAddr is of type SOCKADDR_IN
-    //Extracting the ip and port of the reciever 
-    const sockaddr_in* clientService = reinterpret_cast<const sockaddr_in*>(to);
-    unsigned long ipAddress = clientService->sin_addr.s_addr;
-
-    std::string MyIpAddress = std::to_string(ipAddress);
-    const char* IpConstChar = MyIpAddress.c_str();
-
-    TO_SERVER_IP = static_cast<int>(ipAddress);
-    TO_PORT = static_cast<int>(ntohs(clientService->sin_port));
-
-
-    // Call the original sendto() function
-    int result = pSendTo(s, buf, len, flags, to, tolen);
-
-    if (result >= 0)
-    {
-        AppendText("SentTo() Sent Data : \n");
-        AppendText(buf);
-        AppendText("\n");
-
-        AppendText("Buffer Length : \n");
-        std::string myLen = std::to_string(len);
-        const char* LenConstChar = myLen.c_str();
-        AppendText(LenConstChar);
-
-        AppendText("\n");
-    }
-    else
-    {
-        AppendText("sendto() failed with error code: ");
-        std::string errorCode = std::to_string(WSAGetLastError());
-        AppendText(errorCode.c_str());
-        AppendText("\n");
-    }
-
-    AppendText("\n");
-    return result;
-}
-
-
 
 //Events and stuff for the windows
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -287,6 +327,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         CreateWindow("BUTTON", "Send Packet", WS_CHILD | WS_VISIBLE, 10, 550, 90, 45, hwnd, (HMENU)IDC_READ_BUTTON, nullptr, nullptr);
         CreateWindow("BUTTON", "Reset Output", WS_CHILD | WS_VISIBLE, 120, 550, 90, 45, hwnd, (HMENU)IDC_RESET_BUTTON, nullptr, nullptr);
+
+        // Create checkboxes
+        CreateWindow("BUTTON", "send()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 230, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_SEND, nullptr, nullptr);
+        CreateWindow("BUTTON", "sendto()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_SENDTO, nullptr, nullptr);
+        CreateWindow("BUTTON", "wsasend()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSASEND, nullptr, nullptr);
+
+        // Create checkbox for "Recv" aligned with "send()" checkbox
+        CreateWindow("BUTTON", "Recv", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 230, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECV, nullptr, nullptr);
+        CreateWindow("BUTTON", "RecvFrom", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECVFROM, nullptr, nullptr);
+        CreateWindow("BUTTON", "WSARecv", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSARECV, nullptr, nullptr);
+
         break;
         //for button commands and stuff
     case WM_COMMAND:
@@ -301,43 +352,102 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             ///////////////////////////////////////////////////////////////////////SEND
             // Create a SOCKET for connecting to server
-            ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-            clientService.sin_family = AF_INET;
-            clientService.sin_addr.s_addr = SERVER_IP;
-            clientService.sin_port = htons(PORT);
 
-            connect(ConnectSocket, (SOCKADDR*)&clientService, sizeof(clientService));
+            //Send()
+            if (isSendChecked == BST_CHECKED) {
+                ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                clientService.sin_family = AF_INET;
+                clientService.sin_addr.s_addr = SERVER_IP;
+                clientService.sin_port = htons(PORT);
 
-            //send()
-            int SentBytes = pSend(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0);
-            if (SentBytes != SOCKET_ERROR) {
-                AppendText("Packet sent successfully !");
-                AppendText("\n");
+                connect(ConnectSocket, (SOCKADDR*)&clientService, sizeof(clientService));
+
+                //send()
+                int SentBytes = pSend(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0);
+                if (SentBytes != SOCKET_ERROR) {
+                    AppendText("Packet sent successfully !");
+                    AppendText("\n");
+                }
+
+                shutdown(ConnectSocket, 1);
+                closesocket(ConnectSocket);
             }
 
-            shutdown(ConnectSocket, 1);
-            closesocket(ConnectSocket);
+            
+            //Sendto()
+            if (isSendToChecked == BST_CHECKED) {
+                sockaddr_in RecvAddr;
+                ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                RecvAddr.sin_family = AF_INET;
+                RecvAddr.sin_port = htons(TO_PORT);
+                RecvAddr.sin_addr.s_addr = TO_SERVER_IP;
+                int iResult = sendto(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0, (SOCKADDR*)&RecvAddr, sizeof(RecvAddr));
 
+                if (iResult >= 0) {
+                    AppendText("Packet sent successfully !");
+                    AppendText("\n");
+                }
+            }
+
+
+            //WSASend()
+            if (isWsaSendChecked == BST_CHECKED) {
+                
+                SOCKET ListenSocket = INVALID_SOCKET;
+                SOCKET AcceptSocket = INVALID_SOCKET;
+
+                struct addrinfo* result = NULL;
+                struct addrinfo hints;
+
+                hints.ai_family = AF_INET;
+                hints.ai_socktype = SOCK_STREAM;
+                hints.ai_protocol = IPPROTO_TCP;
+
+                int rc, i;
+                WSAOVERLAPPED SendOverlapped;
+                LPWSAOVERLAPPED_COMPLETION_ROUTINE LpwsaoverlappedCompletionRoutine;;
+
+
+                DWORD SendBytes;
+
+                WSABUF DataBuf;
+                DataBuf.buf = (char*)buffer;
+                DataBuf.len = std::stoi(BufferLen);
+
+                SecureZeroMemory((PVOID)&hints, sizeof(struct addrinfo));
+
+                ListenSocket = socket(result->ai_family,result->ai_socktype, result->ai_protocol);
+
+                rc = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+                rc = listen(ListenSocket, 1);
+
+                AcceptSocket = accept(ListenSocket, NULL, NULL);
+
+                rc = pWsaSend(AcceptSocket, &DataBuf, 1,&SendBytes, 0, &SendOverlapped, NULL);
+
+                if (1 >= 0) {
+                    AppendText("Packet sent successfully !");
+                    AppendText("\n");
+                }
+                closesocket(AcceptSocket);
+            }
             //////////////////////////////////////////////////////////////////////////////////////////
             
-            // sendto()
-            // 
-            //sockaddr_in RecvAddr;
-            //ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-            //
-            //RecvAddr.sin_family = AF_INET;
-            //RecvAddr.sin_port = htons(PORT);
-            //RecvAddr.sin_addr.s_addr = SERVER_IP;
-            //iResult = sendto(ConnectSocket,(const char*)buffer, std::stoi(BufferLen), 0, (SOCKADDR*)&RecvAddr, sizeof(RecvAddr));
-            //if (iResult >= 0){
-            //AppendText("Packet sent successfully !");
-            //AppendText("\n");
-            //}
         }
         if (LOWORD(wParam) == IDC_RESET_BUTTON) {
             //Reset the output box text
             SendMessage(hwndOutput, WM_SETTEXT, 0, (LPARAM)"");
         }
+
+        isSendChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_SEND), BM_GETCHECK, 0, 0);
+        isSendToChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_SENDTO), BM_GETCHECK, 0, 0);
+        isWsaSendChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_WSASEND), BM_GETCHECK, 0, 0);
+
+
+        isRecvChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_RECV), BM_GETCHECK, 0, 0);
+        isRecvFromChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_RECVFROM), BM_GETCHECK, 0, 0);
+        isWSARecvChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_WSARECV), BM_GETCHECK, 0, 0);
+
         break;
 
     case WM_DESTROY:
@@ -352,8 +462,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 int Main()
 {
-    AllocConsole();
-    freopen_s(&pFile, "CONOUT$", "w", stdout);
+    //AllocConsole();
+    //freopen_s(&pFile, "CONOUT$", "w", stdout);
 
     WNDCLASS wc = {};
     wc.lpfnWndProc = WndProc;
@@ -364,22 +474,21 @@ int Main()
     HWND hwnd = CreateWindow(wc.lpszClassName, (LPCSTR)"RainBot's Packet Logger", WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME, CW_USEDEFAULT, CW_USEDEFAULT, 800, 635, nullptr, nullptr, wc.hInstance, nullptr);
 
     AppendText("Init\n");
+
+
     //Init hook
-    if (DetourRestoreAfterWith())
-    {
-        AppendText("Before Init\n");
-    }
+    DetourRestoreAfterWith();
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-    std::cout << pSend << std::endl;
+
+
+
     DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
     DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
     DetourAttach(&(PVOID&)pRecv, (PVOID)MyRecv);
     DetourAttach(&(PVOID&)pWsaSend, (PVOID)MyWSASend);
     DetourAttach(&(PVOID&)pWSARecv, (PVOID)MyWSARecv);
     DetourAttach(&(PVOID&)pSendTo, (PVOID)MySendTo);
-
-
 
     DetourTransactionCommit();
 
@@ -406,7 +515,7 @@ int Main()
 
     MessageBoxA(0, "UnInjecting", "Bye", 0);
     FreeLibraryAndExitThread((HMODULE)myhmod, 0);
-    FreeConsole();
+    //FreeConsole();
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  reason, LPVOID lpReserved)
