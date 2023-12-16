@@ -5,6 +5,9 @@
 #include"detours.h"
 #include<string>
 #include <sstream>
+#include<vector>
+#include<iomanip>
+
 
 #pragma comment(lib, "Ws2_32.lib")
 #define WSAAPI                  FAR PASCAL
@@ -97,11 +100,21 @@ int WSA_TO_PORT;
 //For send() hook it to read the buffer and print it  
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
-    //Check if its checked
+
+    // Check if it's checked
     if (isSendChecked == BST_CHECKED) {
         AppendText("=======================================\n");
         AppendText("Send() Sent Data : \n");
-        AppendText(buf);
+
+        // Print buffer content as an array of bytes
+        AppendText("Buffer content (hex): ");
+        for (int i = 0; i < len; ++i)
+        {
+            // Convert each byte to its hexadecimal representation
+            char hex[4];
+            sprintf_s(hex, "%02X ", static_cast<unsigned char>(buf[i]));
+            AppendText(hex);
+        }
 
         AppendText("\n");
 
@@ -119,12 +132,14 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 
         AppendText("\n");
     }
+
     return pSend(s, buf, len, flags);
 }
 
 //For WSASEnd() hook it to read the buffer and print it                    
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
+    int result = pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
     if (isWsaSendChecked == BST_CHECKED) {
 
         AppendText("=======================================\n");
@@ -132,26 +147,30 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 
         for (DWORD i = 0; i < dwBufferCount; ++i)
         {
-            // Assuming lpBuffers[i].buf is a pointer to the buffer and lpBuffers[i].len is the length
             const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
             DWORD bufferLength = lpBuffers[i].len;
 
-            std::string myLen = std::to_string(bufferLength);
-            const char* LenConstChar = myLen.c_str();
+            // Print buffer content as an array of bytes
+            AppendText("Buffer content (hex): ");
+            for (DWORD j = 0; j < bufferLength; ++j)
+            {
+                // Convert each byte to its hexadecimal representation
+                char hex[4];
+                sprintf_s(hex, "%02X ", static_cast<unsigned char>(bufferContent[j]));
+                AppendText(hex);
+            }
 
-            // Append buffer content to the text
-            AppendText(bufferContent);
             AppendText("\n");
 
-
             AppendText("Buffer length : \n");
-            AppendText(LenConstChar);
+            AppendText(std::to_string(bufferLength).c_str());
+            AppendText("\n");
         }
-
 
         AppendText("\n");
     }
-    return pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
+
+    return result;
 }
 
 // For sendto() hook it to read the buffer and print it
@@ -160,12 +179,12 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
     // Call the original sendto() function
     int result = pSendTo(s, buf, len, flags, to, tolen);
 
+    // Check if it's checked
     if (isSendToChecked == BST_CHECKED) {
         AppendText("=======================================\n");
 
-
         // Assuming sAddr is of type SOCKADDR_IN
-        //Extracting the ip and port of the reciever 
+        // Extracting the IP and port of the receiver
         const sockaddr_in* clientService = reinterpret_cast<const sockaddr_in*>(to);
         unsigned long ipAddress = clientService->sin_addr.s_addr;
 
@@ -177,8 +196,18 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
 
         if (result >= 0)
         {
-            AppendText("SentTo() Sent Data : \n");
-            AppendText(buf);
+            AppendText("SendTo() Sent Data (hex): \n");
+
+            // Print buffer content as an array of bytes
+            AppendText("Buffer content (hex): ");
+            for (int i = 0; i < len; ++i)
+            {
+                // Convert each byte to its hexadecimal representation
+                char hex[4];
+                sprintf_s(hex, "%02X ", static_cast<unsigned char>(buf[i]));
+                AppendText(hex);
+            }
+
             AppendText("\n");
 
             AppendText("Buffer Length : \n");
@@ -190,14 +219,16 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
         }
         else
         {
-            //AppendText("sendto() failed with error code: ");
-            //std::string errorCode = std::to_string(WSAGetLastError());
-            //AppendText(errorCode.c_str());
-            //AppendText("\n");
+            // Handle the case when sendto() fails
+            // AppendText("sendto() failed with error code: ");
+            // std::string errorCode = std::to_string(WSAGetLastError());
+            // AppendText(errorCode.c_str());
+            // AppendText("\n");
         }
 
         AppendText("\n");
     }
+
     return result;
 }
 
@@ -238,8 +269,6 @@ int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 //For recv() hook it to read the buffer and print it  
 int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
 {
-    
-
     // Call the original recv() function
     int result = pRecv(s, buf, len, flags);
     if (isRecvChecked == BST_CHECKED) {
@@ -311,7 +340,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         //creating the menu and text box and more
     case WM_CREATE:
-
+        // Create Buttons
         CreateWindow("STATIC", "Input Packet", WS_CHILD | WS_VISIBLE, 10, 355, 100, 20, hwnd, nullptr, nullptr, nullptr);
         CreateWindow("STATIC", "Output Packet", WS_CHILD | WS_VISIBLE, 10, 10, 100, 20, hwnd, nullptr, nullptr, nullptr);
         CreateWindow("STATIC", "Input Buffer Length", WS_CHILD | WS_VISIBLE, 10, 495, 150, 20, hwnd, nullptr, nullptr, nullptr);
@@ -325,18 +354,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         hwndOutput = CreateWindowEx(WS_EX_CLIENTEDGE, (LPCSTR)"EDIT", nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
             10, 30, 760, 320, hwnd, nullptr, nullptr, nullptr);
 
+        // Create Buttons
         CreateWindow("BUTTON", "Send Packet", WS_CHILD | WS_VISIBLE, 10, 550, 90, 45, hwnd, (HMENU)IDC_READ_BUTTON, nullptr, nullptr);
         CreateWindow("BUTTON", "Reset Output", WS_CHILD | WS_VISIBLE, 120, 550, 90, 45, hwnd, (HMENU)IDC_RESET_BUTTON, nullptr, nullptr);
 
         // Create checkboxes
-        CreateWindow("BUTTON", "send()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 230, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_SEND, nullptr, nullptr);
-        CreateWindow("BUTTON", "sendto()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_SENDTO, nullptr, nullptr);
-        CreateWindow("BUTTON", "wsasend()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSASEND, nullptr, nullptr);
+        CreateWindow("BUTTON", "Send()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 230, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_SEND, nullptr, nullptr);
+        CreateWindow("BUTTON", "SendTo()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_SENDTO, nullptr, nullptr);
+        CreateWindow("BUTTON", "WSASend()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 550, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSASEND, nullptr, nullptr);
 
         // Create checkbox for "Recv" aligned with "send()" checkbox
-        CreateWindow("BUTTON", "Recv", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 230, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECV, nullptr, nullptr);
-        CreateWindow("BUTTON", "RecvFrom", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECVFROM, nullptr, nullptr);
-        CreateWindow("BUTTON", "WSARecv", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSARECV, nullptr, nullptr);
+        CreateWindow("BUTTON", "Recv()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 230, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECV, nullptr, nullptr);
+        CreateWindow("BUTTON", "RecvFrom()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECVFROM, nullptr, nullptr);
+        CreateWindow("BUTTON", "WSARecv()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSARECV, nullptr, nullptr);
 
         break;
         //for button commands and stuff
@@ -344,16 +374,26 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         // Handle button click
         if (LOWORD(wParam) == IDC_READ_BUTTON) {
             // Read text from the input box
-            char buffer[2048]; // Adjust the buffer size as needed
+            char buffer[5000]; // Adjust the buffer size as needed
             GetWindowText(hwndInput, buffer, sizeof(buffer));
 
-            char BufferLen[20];
+            char BufferLen[100];
             GetWindowText(hwndInputLen, BufferLen, sizeof(BufferLen));
 
-            ///////////////////////////////////////////////////////////////////////SEND
-            // Create a SOCKET for connecting to server
+            //To plain text
+            std::string inputText(buffer);
+            inputText.erase(std::remove_if(inputText.begin(), inputText.end(), ::isspace), inputText.end());
 
-            //Send()
+            std::string asciiText;
+            for (size_t i = 0; i < inputText.length(); i += 2) {
+                std::string hexValue = inputText.substr(i, 2);
+                char asciiChar = static_cast<char>(std::stoi(hexValue, nullptr, 16));
+                asciiText += asciiChar;
+            }
+
+            const char* finaltest = asciiText.c_str();
+            strcpy(buffer, finaltest);
+
             if (isSendChecked == BST_CHECKED) {
                 ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
                 clientService.sin_family = AF_INET;
@@ -364,8 +404,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
                 //send()
                 int SentBytes = pSend(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0);
+
                 if (SentBytes != SOCKET_ERROR) {
-                    AppendText("Packet sent successfully !");
+                    AppendText("Packet sent successfully !\n");
                     AppendText("\n");
                 }
 
@@ -480,8 +521,6 @@ int Main()
     DetourRestoreAfterWith();
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-
-
 
     DetourAttach(&(PVOID&)pSend, (PVOID)MySend);
     DetourAttach(&(PVOID&)pConnect, (PVOID)MyConnect);
