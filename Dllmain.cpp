@@ -182,7 +182,6 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
     // Check if it's checked
     if (isSendToChecked == BST_CHECKED) {
         AppendText("=======================================\n");
-
         // Assuming sAddr is of type SOCKADDR_IN
         // Extracting the IP and port of the receiver
         const sockaddr_in* clientService = reinterpret_cast<const sockaddr_in*>(to);
@@ -324,10 +323,10 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     AppendText("\n");
 
     //unhook the function cuz we dont need it anymore
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
-    DetourTransactionCommit();
+    //DetourTransactionBegin();
+    //DetourUpdateThread(GetCurrentThread());
+    //DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
+    //DetourTransactionCommit();
 
     return 0;
 }
@@ -466,7 +465,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
                 rc = pWsaSend(AcceptSocket, &DataBuf, 1,&SendBytes, 0, &SendOverlapped, NULL);
 
-                if (1 >= 0) {
+                if (rc >= 0) {
                     AppendText("Packet sent successfully !");
                     AppendText("\n");
                 }
