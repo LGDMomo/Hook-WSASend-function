@@ -380,8 +380,12 @@ int WSAAPI MyGetAddrinfo(PCSTR Host, PCSTR port, const ADDRINFOA* pHints, PADDRI
     AppendText("Host : ");
     AppendText((const char*)MyHost);
     AppendText("\n");
+
+
     AppendText("Port : ");
     AppendText((const char*)MyPort);
+
+    AppendText("\n");
     return pGetAddrInfo(Host, port, pHints, ppResult);
 }
 
@@ -496,9 +500,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // WSASend()
             if (isWsaSendChecked == BST_CHECKED) {
-                
-                WSADATA wsd;
-
                 struct addrinfo* result = NULL;
                 struct addrinfo hints;
                 WSAOVERLAPPED SendOverlapped;
@@ -513,7 +514,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 int err = 0;
                 int rc, i;
 
-                rc = WSAStartup(MAKEWORD(2, 2), &wsd);
                 SecureZeroMemory((PVOID)&hints, sizeof(struct addrinfo));
 
                 // wildcard bind address for IPv4
@@ -522,11 +522,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 hints.ai_protocol = IPPROTO_TCP;
                 hints.ai_flags = AI_PASSIVE;
 
-                rc = getaddrinfo(WSA_TO_SERVER_IP,WSA_TO_PORT, &hints, &result);
+                getaddrinfo(WSA_TO_SERVER_IP,WSA_TO_PORT, &hints, &result);
                 ListenSocket = socket(result->ai_family,result->ai_socktype, result->ai_protocol);
                 
-                rc = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-                rc = listen(ListenSocket, 1);
+                bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+                listen(ListenSocket, 1);
                 
                 AcceptSocket = accept(ListenSocket, NULL, NULL);
                 
@@ -537,7 +537,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 DataBuf.len = std::stoi(BufferLen);
                 DataBuf.buf = buffer;
 
-                rc = WSASend(AcceptSocket,&DataBuf, 1,&SendBytes, 0, &SendOverlapped, NULL);
+                pWsaSend(AcceptSocket,&DataBuf, 1,&SendBytes, 0, &SendOverlapped, NULL);
                 
                 WSAResetEvent(SendOverlapped.hEvent);
                 WSACloseEvent(SendOverlapped.hEvent);
