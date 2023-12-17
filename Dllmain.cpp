@@ -12,6 +12,8 @@
 #define WSAAPI                  FAR PASCAL
 #define IDC_READ_BUTTON 1001 // Adjust the value as needed
 #define IDC_RESET_BUTTON 1002 // Adjust the value as needed
+#define IDC_HOOK_CONNECT 1010 // Adjust the value as needed
+
 
 #define IDC_CHECKBOX_SEND 1003
 #define IDC_CHECKBOX_SENDTO 1004
@@ -21,6 +23,8 @@
 #define IDC_CHECKBOX_RECVFROM 1007
 #define IDC_CHECKBOX_WSARECV 1008
 #define IDC_TRANSLATE_TO_AOB 1009
+
+
 #define WSAEVENT HANDLE
 
 BOOL isSendChecked;
@@ -323,16 +327,6 @@ int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
 //Hook the connect to get the IP and the PORT of the server for (send , recv)
 int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
 {
-    int Result = pConnect(s, sAddr, nameLen);
-    if (Result != 0)
-    {
-        //unhook the function cuz we dont need it anymore
-        DetourTransactionBegin();
-        DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
-        DetourTransactionCommit();
-        return Result;
-    }
     // Assuming sAddr is of type SOCKADDR_IN
     const sockaddr_in* clientService = reinterpret_cast<const sockaddr_in*>(sAddr);
     unsigned long ipAddress = clientService->sin_addr.s_addr;
@@ -357,10 +351,16 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     AppendText("Port being used is: ");
     AppendText(std::to_string(ntohs(clientService->sin_port)).c_str());
     AppendText("\n");
-
+    //return Result;
+    /*
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
+    DetourTransactionCommit();    
+    */
     
-
-    return Result;
+    return pConnect(s,sAddr,nameLen);
+  
 }
 
 
@@ -399,7 +399,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         CreateWindow("BUTTON", "RecvFrom()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECVFROM, nullptr, nullptr);
         CreateWindow("BUTTON", "WSARecv()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSARECV, nullptr, nullptr);
 
-        CreateWindow("BUTTON", "AOB", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 560, 570, 90, 25, hwnd, (HMENU)IDC_TRANSLATE_TO_AOB, nullptr, nullptr);
+        CreateWindow("BUTTON", "AOB", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 550, 570, 90, 25, hwnd, (HMENU)IDC_TRANSLATE_TO_AOB, nullptr, nullptr);
+
+        CreateWindow("BUTTON", "Hook Connect()", WS_CHILD | WS_VISIBLE, 120, 550, 90, 45, hwnd, (HMENU)IDC_RESET_BUTTON, nullptr, nullptr);
         break;
         //for button commands and stuff
     case WM_COMMAND:
