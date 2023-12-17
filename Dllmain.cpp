@@ -76,11 +76,12 @@ SOCKET ConnectSocket = INVALID_SOCKET;
 
 //Proto functions
 typedef int (WINAPI* SendPtr)(SOCKET s, const char* buf, int len, int flags);
-typedef int (WINAPI* WSASendPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
-typedef int (WINAPI* WSARecvPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
+typedef int (WINAPI* WSASendPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, LPDWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
+typedef int (WINAPI* WSARecvPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
 typedef int (WINAPI* ConnectCustom)(SOCKET s, const SOCKADDR* sAddr, int nameLen);
-typedef int (WINAPI* RecvCustom)(SOCKET s, const char* buf, int len, int flags);
+typedef int (WINAPI* RecvCustom)(SOCKET s, char* buf, int len, int flags);
 typedef int (WINAPI* SendToCustom)(SOCKET s, const char* buf, int len, int flags,const sockaddr* to,int ToLen);
+
 
 //Lib
 HMODULE hLib = LoadLibrary("WS2_32.dll");
@@ -105,6 +106,7 @@ int WSA_TO_PORT;
 //For send() hook it to read the buffer and print it  
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
+    
     int result = pSend(s, buf, len, flags);
     // Check if it's checked
     if (isSendChecked == BST_CHECKED) {
@@ -148,7 +150,7 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 }
 
 //For WSASEnd() hook it to read the buffer and print it                    
-int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
+int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, LPDWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
     int result = pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
     if (isWsaSendChecked == BST_CHECKED) {
@@ -258,10 +260,10 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
 
 
 // For WSARecv() hook it to read the buffer and print it
-int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
+int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-    
 
+    
     // Call the original WSARecv() function
     int result = pWSARecv(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, dwFlags, lpOverlapped, lpCompletionRoutine);
     if (isWSARecvChecked == BST_CHECKED) {
@@ -290,7 +292,7 @@ int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
 
 
 //For recv() hook it to read the buffer and print it  
-int WSAAPI MyRecv(SOCKET s, const char* buf, int len, int flags)
+int WSAAPI MyRecv(SOCKET s, char* buf, int len, int flags)
 {
     // Call the original recv() function
     int result = pRecv(s, buf, len, flags);
@@ -343,6 +345,7 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     // Convert to string and print
     std::string ipAddresss = inet_ntoa(ipAddr);
 
+    
     AppendText("\n");
     AppendText("IP address being used is: ");
     AppendText(ipAddresss.c_str());
@@ -352,6 +355,7 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     AppendText(std::to_string(ntohs(clientService->sin_port)).c_str());
     AppendText("\n");
     //return Result;
+
     /*
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
@@ -359,8 +363,8 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     DetourTransactionCommit();    
     */
     
-    return pConnect(s,sAddr,nameLen);
-  
+    return pConnect(s, sAddr, nameLen);
+  //pConnect(s,sAddr,nameLen)
 }
 
 
@@ -438,7 +442,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 clientService.sin_addr.s_addr = SERVER_IP;
                 clientService.sin_port = htons(PORT);
 
-                connect(ConnectSocket, (SOCKADDR*)&clientService, sizeof(clientService));
+                pConnect(ConnectSocket, (SOCKADDR*)&clientService, sizeof(clientService));
 
                 //send()
                 int SentBytes = pSend(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0);
