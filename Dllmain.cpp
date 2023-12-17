@@ -134,6 +134,7 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
         }
         AppendText("\n");
 
+        /*
         AppendText("Buffer Length: ");
         std::string myLen = std::to_string(len);
         const char* LenConstChar = myLen.c_str();
@@ -141,12 +142,14 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 
         AppendText("\n");
 
+
         AppendText("Flags : ");
         std::string myFlags = std::to_string(flags);
         const char* FlagsConstChar = myFlags.c_str();
         AppendText(FlagsConstChar);
 
         AppendText("\n");
+        */
     }
 
     return result;
@@ -182,11 +185,13 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
                 AppendText("Buffer : \n");
                 AppendText(bufferContent);
             }
+            /*
             AppendText("\n");
 
             AppendText("Buffer length : \n");
             AppendText(std::to_string(bufferLength).c_str());
             AppendText("\n");
+            */
         }
 
         AppendText("\n");
@@ -238,20 +243,14 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
 
             AppendText("\n");
 
+            /*
             AppendText("Buffer Length : \n");
             std::string myLen = std::to_string(len);
             const char* LenConstChar = myLen.c_str();
             AppendText(LenConstChar);
 
             AppendText("\n");
-        }
-        else
-        {
-            // Handle the case when sendto() fails
-            // AppendText("sendto() failed with error code: ");
-            // std::string errorCode = std::to_string(WSAGetLastError());
-            // AppendText(errorCode.c_str());
-            // AppendText("\n");
+            */
         }
 
         AppendText("\n");
@@ -279,13 +278,14 @@ int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
                 AppendText(lpBuffers[i].buf);
             }
             AppendText("\n");
-
+            /*
             AppendText("Buffer Length : \n");
             std::string myLen = std::to_string(*lpNumberOfBytesRecvd);
             const char* LenConstChar = myLen.c_str();
             AppendText(LenConstChar);
 
             AppendText("\n");
+            */
         }
 
         AppendText("\n");
@@ -307,21 +307,14 @@ int WSAAPI MyRecv(SOCKET s, char* buf, int len, int flags)
             AppendText(buf);
             AppendText("\n");
 
+            /*
             AppendText("Buffer Length : \n");
             std::string myLen = std::to_string(len);
             const char* LenConstChar = myLen.c_str();
             AppendText(LenConstChar);
 
             AppendText("\n");
-        }
-        else
-        {
-            // Handle error if needed
-            // You can log the error code or take appropriate action
-            //AppendText("Recv() failed with error code: ");
-            //std::string errorCode = std::to_string(WSAGetLastError());
-            //AppendText(errorCode.c_str());
-            //AppendText("\n");
+            */
         }
 
         AppendText("\n");
@@ -357,17 +350,8 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     AppendText("Port being used is: ");
     AppendText(std::to_string(ntohs(clientService->sin_port)).c_str());
     AppendText("\n");
-    //return Result;
-
-    /*
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
-    DetourTransactionCommit();    
-    */
     
     return pConnect(s, sAddr, nameLen);
-  //pConnect(s,sAddr,nameLen)
 }
 
 int WSAAPI MyGetAddrinfo(PCSTR Host, PCSTR port, const ADDRINFOA* pHints, PADDRINFOA* ppResult)
@@ -403,10 +387,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         CreateWindow("STATIC", "Input Buffer Length", WS_CHILD | WS_VISIBLE, 10, 495, 150, 20, hwnd, nullptr, nullptr, nullptr);
 
         hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL,
-            10, 375, 760, 115, hwnd, nullptr, nullptr, nullptr);
-
-        hwndInputLen = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE | ES_AUTOVSCROLL,
-            10, 515, 765, 30, hwnd, nullptr, nullptr, nullptr);
+            10, 375, 760, 155, hwnd, nullptr, nullptr, nullptr);
 
         hwndOutput = CreateWindowEx(WS_EX_CLIENTEDGE, (LPCSTR)"EDIT", nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
             10, 30, 760, 320, hwnd, nullptr, nullptr, nullptr);
@@ -437,8 +418,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             char buffer[5000]; // Adjust the buffer size as needed
             GetWindowText(hwndInput, buffer, sizeof(buffer));
 
-            char BufferLen[100];
-            GetWindowText(hwndInputLen, BufferLen, sizeof(BufferLen));
 
             //To plain text
             if (isAOBTranslate)
@@ -468,7 +447,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 pConnect(ConnectSocket, (SOCKADDR*)&clientService, sizeof(clientService));
 
                 //send()
-                int SentBytes = pSend(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0);
+                size_t arraySize = strlen(buffer);
+                int SentBytes = pSend(ConnectSocket, (const char*)buffer, static_cast<int>(arraySize), 0);
 
                 if (SentBytes != SOCKET_ERROR) {
                     AppendText("Packet sent successfully !\n");
@@ -482,12 +462,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             
             // Sendto()
             if (isSendToChecked == BST_CHECKED) {
+                size_t arraySize = strlen(buffer);
                 SOCKET ConnectSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP); // Use SOCK_DGRAM for UDP
                 sockaddr_in RecvAddr;
                 RecvAddr.sin_family = AF_INET;
                 RecvAddr.sin_port = htons(TO_PORT);
                 RecvAddr.sin_addr.s_addr = TO_SERVER_IP;
-                int iResult = sendto(ConnectSocket, (const char*)buffer, std::stoi(BufferLen), 0, (SOCKADDR*)&RecvAddr, sizeof(RecvAddr));
+                int iResult = sendto(ConnectSocket, (const char*)buffer, static_cast<int>(arraySize), 0, (SOCKADDR*)&RecvAddr, sizeof(RecvAddr));
 
                 if (iResult >= 0) {
                     AppendText("Packet sent successfully!\n");
@@ -500,6 +481,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // WSASend()
             if (isWsaSendChecked == BST_CHECKED) {
+
+                size_t arraySize = strlen(buffer);
                 struct addrinfo* result = NULL;
                 struct addrinfo hints;
                 WSAOVERLAPPED SendOverlapped;
@@ -534,7 +517,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
                 SendOverlapped.hEvent = WSACreateEvent();
                 
-                DataBuf.len = std::stoi(BufferLen);
+                DataBuf.len = static_cast<int>(arraySize);
                 DataBuf.buf = buffer;
 
                 pWsaSend(AcceptSocket,&DataBuf, 1,&SendBytes, 0, &SendOverlapped, NULL);
