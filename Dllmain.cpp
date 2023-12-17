@@ -8,7 +8,6 @@
 #include<vector>
 #include<iomanip>
 
-
 #pragma comment(lib, "Ws2_32.lib")
 #define WSAAPI                  FAR PASCAL
 #define IDC_READ_BUTTON 1001 // Adjust the value as needed
@@ -21,6 +20,7 @@
 #define IDC_CHECKBOX_RECV 1006
 #define IDC_CHECKBOX_RECVFROM 1007
 #define IDC_CHECKBOX_WSARECV 1008
+#define IDC_TRANSLATE_TO_AOB 1009
 #define WSAEVENT HANDLE
 
 BOOL isSendChecked;
@@ -30,6 +30,8 @@ BOOL isWsaSendChecked;
 BOOL isRecvChecked;
 BOOL isRecvFromChecked;
 BOOL isWSARecvChecked;
+
+BOOL isAOBTranslate;
 
 #define DEFAULT_PORT 27015
 
@@ -96,7 +98,6 @@ int TO_PORT;
 int WSA_TO_SERVER_IP;
 int WSA_TO_PORT;
 
-
 //For send() hook it to read the buffer and print it  
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
@@ -107,15 +108,21 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
         AppendText("Send() Sent Data : \n");
 
         // Print buffer content as an array of bytes
-        AppendText("Buffer content (hex): ");
-        for (int i = 0; i < len; ++i)
-        {
-            // Convert each byte to its hexadecimal representation
-            char hex[4];
-            sprintf_s(hex, "%02X ", static_cast<unsigned char>(buf[i]));
-            AppendText(hex);
+        if (isAOBTranslate) {
+            AppendText("Buffer content (hex): ");
+            for (int i = 0; i < len; ++i)
+            {
+                // Convert each byte to its hexadecimal representation
+                char hex[4];
+                sprintf_s(hex, "%02X ", static_cast<unsigned char>(buf[i]));
+                AppendText(hex);
+            }
         }
-
+        else
+        {
+            AppendText("Buffer : \n");
+            AppendText(buf);
+        }
         AppendText("\n");
 
         AppendText("Buffer Length: ");
@@ -150,16 +157,22 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
             const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
             DWORD bufferLength = lpBuffers[i].len;
 
-            // Print buffer content as an array of bytes
-            AppendText("Buffer content (hex): ");
-            for (DWORD j = 0; j < bufferLength; ++j)
-            {
-                // Convert each byte to its hexadecimal representation
-                char hex[4];
-                sprintf_s(hex, "%02X ", static_cast<unsigned char>(bufferContent[j]));
-                AppendText(hex);
+            if (isAOBTranslate) {
+                // Print buffer content as an array of bytes
+                AppendText("Buffer content (hex): ");
+                for (DWORD j = 0; j < bufferLength; ++j)
+                {
+                    // Convert each byte to its hexadecimal representation
+                    char hex[4];
+                    sprintf_s(hex, "%02X ", static_cast<unsigned char>(bufferContent[j]));
+                    AppendText(hex);
+                }
             }
-
+            else
+            {
+                AppendText("Buffer : \n");
+                AppendText(bufferContent);
+            }
             AppendText("\n");
 
             AppendText("Buffer length : \n");
@@ -198,13 +211,20 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
             AppendText("SendTo() Sent Data (hex): \n");
 
             // Print buffer content as an array of bytes
-            AppendText("Buffer content (hex): ");
-            for (int i = 0; i < len; ++i)
+            if (isAOBTranslate) {
+                AppendText("Buffer content (hex): \n");
+                for (int i = 0; i < len; ++i)
+                {
+                    // Convert each byte to its hexadecimal representation
+                    char hex[4];
+                    sprintf_s(hex, "%02X ", static_cast<unsigned char>(buf[i]));
+                    AppendText(hex);
+                }
+            }
+            else
             {
-                // Convert each byte to its hexadecimal representation
-                char hex[4];
-                sprintf_s(hex, "%02X ", static_cast<unsigned char>(buf[i]));
-                AppendText(hex);
+                AppendText("Buffer : \n");
+                AppendText(buf);
             }
 
             AppendText("\n");
@@ -313,9 +333,15 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     SERVER_IP = static_cast<int>(ipAddress);
     PORT = static_cast<int>(ntohs(clientService->sin_port));
 
+    struct in_addr ipAddr;
+    ipAddr.s_addr = htonl(ipAddress);
+
+    // Convert to string and print
+    std::string ipAddresss = inet_ntoa(ipAddr);
+
     AppendText("\n");
     AppendText("IP address being used is: ");
-    AppendText(IpConstChar);
+    AppendText(ipAddresss.c_str());
     AppendText("\n");
 
     AppendText("Port being used is: ");
@@ -323,10 +349,10 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     AppendText("\n");
 
     //unhook the function cuz we dont need it anymore
-    //DetourTransactionBegin();
-    //DetourUpdateThread(GetCurrentThread());
-    //DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
-    //DetourTransactionCommit();
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourDetach(&(PVOID&)pConnect, (PVOID)MyConnect);
+    DetourTransactionCommit();
 
     return 0;
 }
@@ -367,6 +393,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         CreateWindow("BUTTON", "RecvFrom()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 330, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_RECVFROM, nullptr, nullptr);
         CreateWindow("BUTTON", "WSARecv()", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 430, 580, 90, 25, hwnd, (HMENU)IDC_CHECKBOX_WSARECV, nullptr, nullptr);
 
+        CreateWindow("BUTTON", "AOB", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 520, 570, 90, 25, hwnd, (HMENU)IDC_TRANSLATE_TO_AOB, nullptr, nullptr);
         break;
         //for button commands and stuff
     case WM_COMMAND:
@@ -380,18 +407,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             GetWindowText(hwndInputLen, BufferLen, sizeof(BufferLen));
 
             //To plain text
-            std::string inputText(buffer);
-            inputText.erase(std::remove_if(inputText.begin(), inputText.end(), ::isspace), inputText.end());
+            if (isAOBTranslate)
+            {
+                std::string inputText(buffer);
+                inputText.erase(std::remove_if(inputText.begin(), inputText.end(), ::isspace), inputText.end());
 
-            std::string asciiText;
-            for (size_t i = 0; i < inputText.length(); i += 2) {
-                std::string hexValue = inputText.substr(i, 2);
-                char asciiChar = static_cast<char>(std::stoi(hexValue, nullptr, 16));
-                asciiText += asciiChar;
+                std::string asciiText;
+                for (size_t i = 0; i < inputText.length(); i += 2) {
+                    std::string hexValue = inputText.substr(i, 2);
+                    char asciiChar = static_cast<char>(std::stoi(hexValue, nullptr, 16));
+                    asciiText += asciiChar;
+                }
+
+                const char* finaltest = asciiText.c_str();
+                strcpy(buffer, finaltest);
             }
-
-            const char* finaltest = asciiText.c_str();
-            strcpy(buffer, finaltest);
+            
 
             if (isSendChecked == BST_CHECKED) {
                 ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -488,6 +519,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         isRecvFromChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_RECVFROM), BM_GETCHECK, 0, 0);
         isWSARecvChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKBOX_WSARECV), BM_GETCHECK, 0, 0);
 
+        isAOBTranslate = SendMessage(GetDlgItem(hwnd, IDC_TRANSLATE_TO_AOB), BM_GETCHECK, 0, 0);
         break;
 
     case WM_DESTROY:
