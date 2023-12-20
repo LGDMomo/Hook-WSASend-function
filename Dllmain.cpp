@@ -48,22 +48,7 @@ HWND hwndOutput = nullptr;
 HWND hwndInput = nullptr;
 HWND hwndInputLen = nullptr;
 
-
-//struct for correct data handling
-//typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
-//
-//typedef struct _WSABUF {
-//    ULONG len;     /* the length of the buffer */
-//    _Field_size_bytes_(len) CHAR FAR* buf; /* the pointer to the buffer */
-//} WSABUF, FAR* LPWSABUF;
-//typedef void(CALLBACK* LPWSAOVERLAPPED_COMPLETION_ROUTINE)(IN DWORD dwError, IN DWORD cbTransferred, IN LPWSAOVERLAPPED lpOverlapped, IN DWORD dwFlags);
-//struct sockaddr_in clientService;
-//typedef struct _OVERLAPPED* LPWSAOVERLAPPED;
-
 struct sockaddr_in clientService;
-
-
-
 
 //add text
 void AppendText(const char* text) {
@@ -71,7 +56,6 @@ void AppendText(const char* text) {
     SendMessage(hwndOutput, EM_SETSEL, len, len);
     SendMessage(hwndOutput, EM_REPLACESEL, FALSE, reinterpret_cast<LPARAM>(text));
 }
-
 
 //backup in case
 SOCKET ConnectSocket = INVALID_SOCKET;
@@ -109,7 +93,6 @@ PCSTR WSA_TO_PORT;
 //For send() hook it to read the buffer and print it  
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 {
-    
     int result = pSend(s, buf, len, flags);
     // Check if it's checked
     if (isSendChecked == BST_CHECKED) {
@@ -133,25 +116,7 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
             AppendText(buf);
         }
         AppendText("\n");
-
-        /*
-        AppendText("Buffer Length: ");
-        std::string myLen = std::to_string(len);
-        const char* LenConstChar = myLen.c_str();
-        AppendText(LenConstChar);
-
-        AppendText("\n");
-
-
-        AppendText("Flags : ");
-        std::string myFlags = std::to_string(flags);
-        const char* FlagsConstChar = myFlags.c_str();
-        AppendText(FlagsConstChar);
-
-        AppendText("\n");
-        */
     }
-
     return result;
 }
 
@@ -185,13 +150,6 @@ int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
                 AppendText("Buffer : \n");
                 AppendText(bufferContent);
             }
-            /*
-            AppendText("\n");
-
-            AppendText("Buffer length : \n");
-            AppendText(std::to_string(bufferLength).c_str());
-            AppendText("\n");
-            */
         }
 
         AppendText("\n");
@@ -209,7 +167,6 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
     // Check if it's checked
     if (isSendToChecked == BST_CHECKED) {
         AppendText("=======================================\n");
-        // Assuming sAddr is of type SOCKADDR_IN
         // Extracting the IP and port of the receiver
         const sockaddr_in* clientService = reinterpret_cast<const sockaddr_in*>(to);
         unsigned long ipAddress = clientService->sin_addr.s_addr;
@@ -240,17 +197,7 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
                 AppendText("Buffer : \n");
                 AppendText(buf);
             }
-
             AppendText("\n");
-
-            /*
-            AppendText("Buffer Length : \n");
-            std::string myLen = std::to_string(len);
-            const char* LenConstChar = myLen.c_str();
-            AppendText(LenConstChar);
-
-            AppendText("\n");
-            */
         }
 
         AppendText("\n");
@@ -278,14 +225,6 @@ int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD 
                 AppendText(lpBuffers[i].buf);
             }
             AppendText("\n");
-            /*
-            AppendText("Buffer Length : \n");
-            std::string myLen = std::to_string(*lpNumberOfBytesRecvd);
-            const char* LenConstChar = myLen.c_str();
-            AppendText(LenConstChar);
-
-            AppendText("\n");
-            */
         }
 
         AppendText("\n");
@@ -306,15 +245,6 @@ int WSAAPI MyRecv(SOCKET s, char* buf, int len, int flags)
             AppendText("Recv : Received Data : \n");
             AppendText(buf);
             AppendText("\n");
-
-            /*
-            AppendText("Buffer Length : \n");
-            std::string myLen = std::to_string(len);
-            const char* LenConstChar = myLen.c_str();
-            AppendText(LenConstChar);
-
-            AppendText("\n");
-            */
         }
 
         AppendText("\n");
@@ -408,7 +338,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
         CreateWindow("BUTTON", "AOB", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 550, 570, 90, 25, hwnd, (HMENU)IDC_TRANSLATE_TO_AOB, nullptr, nullptr);
 
-        CreateWindow("BUTTON", "Hook Connect()", WS_CHILD | WS_VISIBLE, 120, 550, 90, 45, hwnd, (HMENU)IDC_RESET_BUTTON, nullptr, nullptr);
         break;
         //for button commands and stuff
     case WM_COMMAND:
@@ -589,7 +518,6 @@ int Main()
     DetourAttach(&(PVOID&)pGetAddrInfo, (PVOID)MyGetAddrinfo);
 
     DetourTransactionCommit();
-
 
     ShowWindow(hwnd, SW_SHOWNORMAL);
     UpdateWindow(hwnd);
