@@ -66,7 +66,7 @@ typedef int (WINAPI* WSASendPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCou
 typedef int (WINAPI* WSARecvPtr)(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
 typedef int (WINAPI* ConnectCustom)(SOCKET s, const SOCKADDR* sAddr, int nameLen);
 typedef int (WINAPI* RecvCustom)(SOCKET s, char* buf, int len, int flags);
-typedef int (WINAPI* SendToCustom)(SOCKET s, const char* buf, int len, int flags,const sockaddr* to,int ToLen);
+typedef int (WINAPI* SendToCustom)(SOCKET s, const char* buf, int len, int flags, const sockaddr* to, int ToLen);
 typedef int (WINAPI* CustomGetaddrinfo)(PCSTR Host, PCSTR port, const ADDRINFOA* pHints, PADDRINFOA* ppResult);
 
 //Lib
@@ -87,8 +87,9 @@ int PORT;
 int TO_SERVER_IP;
 int TO_PORT;
 
-PCSTR WSA_TO_SERVER_IP;
-PCSTR WSA_TO_PORT;
+PCSTR WSA_TO_SERVER_IP = "";
+int WSA_TO_PORT;
+
 
 //For send() hook it to read the buffer and print it  
 int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
@@ -124,35 +125,37 @@ int WSAAPI MySend(SOCKET s, const char* buf, int len, int flags)
 int WSAAPI MyWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, LPDWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
     int result = pWsaSend(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
+    
     if (isWsaSendChecked == BST_CHECKED) {
-
-        AppendText("=======================================\n");
-        AppendText("WSASend() Sent Data : \n");
-
-        for (DWORD i = 0; i < dwBufferCount; ++i)
+        if (lpBuffers[0].len > 200)
         {
-            const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
-            DWORD bufferLength = lpBuffers[i].len;
+            AppendText("=======================================\n");
+            AppendText("WSASend() Sent Data : \n");
 
-            if (isAOBTranslate) {
-                // Print buffer content as an array of bytes
-                AppendText("Buffer content (hex): ");
-                for (DWORD j = 0; j < bufferLength; ++j)
+            for (DWORD i = 0; i < dwBufferCount; ++i)
+            {
+                const char* bufferContent = reinterpret_cast<const char*>(lpBuffers[i].buf);
+                DWORD bufferLength = lpBuffers[i].len;
+                if (isAOBTranslate) {
+                    // Print buffer content as an array of bytes
+                    AppendText("Buffer content (hex): ");
+                    for (DWORD j = 0; j < bufferLength; ++j)
+                    {
+                        // Convert each byte to its hexadecimal representation
+                        char hex[4];
+                        sprintf_s(hex, "%02X ", static_cast<unsigned char>(bufferContent[j]));
+                        AppendText(hex);
+                    }
+                }
+                else
                 {
-                    // Convert each byte to its hexadecimal representation
-                    char hex[4];
-                    sprintf_s(hex, "%02X ", static_cast<unsigned char>(bufferContent[j]));
-                    AppendText(hex);
+                    AppendText("Buffer : \n");
+                    AppendText(bufferContent);
                 }
             }
-            else
-            {
-                AppendText("Buffer : \n");
-                AppendText(bufferContent);
-            }
-        }
 
-        AppendText("\n");
+            AppendText("\n");
+        }
     }
 
     return result;
@@ -212,7 +215,7 @@ int WSAAPI MySendTo(SOCKET s, const char* buf, int len, int flags, const struct 
 int WSAAPI MyWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 
-    
+
     // Call the original WSARecv() function
     int result = pWSARecv(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, dwFlags, lpOverlapped, lpCompletionRoutine);
     if (isWSARecvChecked == BST_CHECKED) {
@@ -271,7 +274,7 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     // Convert to string and print
     std::string ipAddresss = inet_ntoa(ipAddr);
 
-    
+
     AppendText("\n");
     AppendText("IP address being used is: ");
     AppendText(ipAddresss.c_str());
@@ -280,26 +283,25 @@ int WSAAPI MyConnect(SOCKET s, const SOCKADDR* sAddr, int nameLen)
     AppendText("Port being used is: ");
     AppendText(std::to_string(ntohs(clientService->sin_port)).c_str());
     AppendText("\n");
-    
+
     return pConnect(s, sAddr, nameLen);
 }
 
 int WSAAPI MyGetAddrinfo(PCSTR Host, PCSTR port, const ADDRINFOA* pHints, PADDRINFOA* ppResult)
 {
-    PCSTR MyHost = Host;
-    PCSTR MyPort = port;
-    WSA_TO_SERVER_IP = MyHost;
-    WSA_TO_PORT = MyPort;
 
     AppendText("Host : ");
-    AppendText((const char*)MyHost);
+    AppendText((const char*)Host);
     AppendText("\n");
 
 
     AppendText("Port : ");
-    AppendText((const char*)MyPort);
-
+    AppendText((const char*)port);
     AppendText("\n");
+
+    WSA_TO_SERVER_IP = (const char*)Host;
+    WSA_TO_PORT = static_cast<int>(PORT);
+
     return pGetAddrInfo(Host, port, pHints, ppResult);
 }
 
@@ -314,7 +316,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         // Create Buttons
         CreateWindow("STATIC", "Input Packet", WS_CHILD | WS_VISIBLE, 10, 355, 100, 20, hwnd, nullptr, nullptr, nullptr);
         CreateWindow("STATIC", "Output Packet", WS_CHILD | WS_VISIBLE, 10, 10, 100, 20, hwnd, nullptr, nullptr, nullptr);
-        CreateWindow("STATIC", "Input Buffer Length", WS_CHILD | WS_VISIBLE, 10, 495, 150, 20, hwnd, nullptr, nullptr, nullptr);
 
         hwndInput = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", nullptr, WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL,
             10, 375, 760, 155, hwnd, nullptr, nullptr, nullptr);
@@ -364,7 +365,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 const char* finaltest = asciiText.c_str();
                 strcpy(buffer, finaltest);
             }
-            
+
             //Send()
             if (isSendChecked == BST_CHECKED) {
                 ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -388,7 +389,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 closesocket(ConnectSocket);
             }
 
-            
+
             // Sendto()
             if (isSendToChecked == BST_CHECKED) {
                 size_t arraySize = strlen(buffer);
@@ -397,7 +398,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 RecvAddr.sin_family = AF_INET;
                 RecvAddr.sin_port = htons(TO_PORT);
                 RecvAddr.sin_addr.s_addr = TO_SERVER_IP;
-                int iResult = sendto(ConnectSocket, (const char*)buffer, static_cast<int>(arraySize), 0, (SOCKADDR*)&RecvAddr, sizeof(RecvAddr));
+                int iResult = pSendTo(ConnectSocket, (const char*)buffer, static_cast<int>(arraySize), 0, (SOCKADDR*)&RecvAddr, sizeof(RecvAddr));
 
                 if (iResult >= 0) {
                     AppendText("Packet sent successfully!\n");
@@ -411,55 +412,58 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // WSASend()
             if (isWsaSendChecked == BST_CHECKED) {
 
-                size_t arraySize = strlen(buffer);
-                struct addrinfo* result = NULL;
-                struct addrinfo hints;
-                WSAOVERLAPPED SendOverlapped;
+                // Initialize Winsock
+                WSADATA wsaData;
+                if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+                    std::cerr << "WSAStartup failed\n";
+                    return 1;
+                }
 
-                SOCKET ListenSocket = INVALID_SOCKET;
-                SOCKET AcceptSocket = INVALID_SOCKET;
+                // Create a socket
+                SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+                if (clientSocket == INVALID_SOCKET) {
+                    std::cerr << "Socket creation failed\n";
+                    WSACleanup();
+                    return 1;
+                }
 
-                WSABUF DataBuf;
-                DWORD SendBytes;
-                DWORD Flags;
+                // Set up the server address
+                sockaddr_in serverAddress;
+                serverAddress.sin_family = AF_INET;
+                serverAddress.sin_port = htons(WSA_TO_PORT);
+                inet_pton(AF_INET, WSA_TO_SERVER_IP, &(serverAddress.sin_addr));
 
-                int err = 0;
-                int rc, i;
+                // Connect to the server
+                if (pConnect(clientSocket, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)) == SOCKET_ERROR) {
+                    closesocket(clientSocket);
+                    WSACleanup();
+                    return 1;
+                }
 
-                SecureZeroMemory((PVOID)&hints, sizeof(struct addrinfo));
+                // Prepare the data to send
+                const char* sendData = buffer;
+                int sendDataLength = strlen(sendData);
 
-                // wildcard bind address for IPv4
-                hints.ai_family = AF_INET;
-                hints.ai_socktype = SOCK_STREAM;
-                hints.ai_protocol = IPPROTO_TCP;
-                hints.ai_flags = AI_PASSIVE;
+                // Prepare the WSABUF structure
+                WSABUF dataBuffer;
+                dataBuffer.buf = const_cast<char*>(sendData);
+                dataBuffer.len = sendDataLength;
 
-                getaddrinfo(WSA_TO_SERVER_IP,WSA_TO_PORT, &hints, &result);
-                ListenSocket = socket(result->ai_family,result->ai_socktype, result->ai_protocol);
-                
-                bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
-                listen(ListenSocket, 1);
-                
-                AcceptSocket = accept(ListenSocket, NULL, NULL);
-                
-                SecureZeroMemory((PVOID)&SendOverlapped, sizeof(WSAOVERLAPPED));
+                // Send the data using WSASend
+                DWORD bytesSent;
+                if (WSASend(clientSocket, &dataBuffer, 1, &bytesSent, 0, nullptr, nullptr) == SOCKET_ERROR) {
+                    closesocket(clientSocket);
+                    WSACleanup();
+                    return 1;
+                }
 
-                SendOverlapped.hEvent = WSACreateEvent();
-                
-                DataBuf.len = static_cast<int>(arraySize);
-                DataBuf.buf = buffer;
-
-                pWsaSend(AcceptSocket,&DataBuf, 1,&SendBytes, 0, &SendOverlapped, NULL);
-                
-                WSAResetEvent(SendOverlapped.hEvent);
-                WSACloseEvent(SendOverlapped.hEvent);
-                closesocket(AcceptSocket);
-                closesocket(ListenSocket);
-                freeaddrinfo(result);
+                // Clean up
+                closesocket(clientSocket);
                 WSACleanup();
+
             }
 
-            
+
         }
         if (LOWORD(wParam) == IDC_RESET_BUTTON) {
             //Reset the output box text
