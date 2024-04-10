@@ -1,0 +1,10 @@
+C:\Users\Amri\source\repos\RainTool\bin\x64\Release\RainTool.exe.config
+C:\Users\Amri\source\repos\RainTool\bin\x64\Release\RainTool.exe
+C:\Users\Amri\source\repos\RainTool\bin\x64\Release\RainTool.pdb
+C:\Users\Amri\source\repos\RainTool\obj\x64\Release\RainTool.csproj.AssemblyReference.cache
+C:\Users\Amri\source\repos\RainTool\obj\x64\Release\RainTool.Form1.resources
+C:\Users\Amri\source\repos\RainTool\obj\x64\Release\RainTool.Properties.Resources.resources
+C:\Users\Amri\source\repos\RainTool\obj\x64\Release\RainTool.csproj.GenerateResource.cache
+C:\Users\Amri\source\repos\RainTool\obj\x64\Release\RainTool.csproj.CoreCompileInputs.cache
+C:\Users\Amri\source\repos\RainTool\obj\x64\Release\RainTool.exe
+C:\Users\Amri\source\repos\RainTool\obj\x64\Release\RainTool.pdb
